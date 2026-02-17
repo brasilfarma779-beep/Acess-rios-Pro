@@ -7,14 +7,21 @@ export enum Category {
   ANEIS = 'Anéis'
 }
 
-export type SaleStatus = 'Vendida' | 'Não Vendida';
+export type MovementType = 'Entregue' | 'Vendido' | 'Devolvido' | 'Reposição';
+
+export type SaleStatus = 'Vendida' | 'Não Vendida' | 'Cancelada';
+
+export type RepStatus = 'Em Campo' | 'Na Base';
 
 export interface Representative {
   id: string;
   name: string;
   phone: string;
   city: string;
+  startDate: string;
+  endDate: string;
   active: boolean;
+  status: RepStatus;
 }
 
 export interface Product {
@@ -23,7 +30,18 @@ export interface Product {
   category: Category;
   code: string;
   price: number;
-  stock: number; // Novo: Controle de quantidade de mercadoria
+  stock: number;
+}
+
+export interface Movement {
+  id: string;
+  date: string;
+  representativeId: string;
+  productId: string;
+  type: MovementType;
+  quantity: number;
+  value: number; 
+  image?: string;
 }
 
 export interface Sale {
@@ -35,16 +53,20 @@ export interface Sale {
   category: Category;
   value: number;
   status: SaleStatus;
+  image?: string;
 }
 
-export interface Summary {
-  totalSold: number;
-  commission: number;
-  totalToReceive: number;
-}
-
-export interface RepSummary extends Summary {
-  repName: string;
+export interface MaletaSummary {
   repId: string;
+  repName: string;
+  totalDelivered: number; 
+  totalSold: number;
+  totalReturned: number;
+  currentStockQty: number;
+  soldValue: number;
   commissionRate: number;
+  commissionValue: number;
+  ownerValue: number;
+  isClosed: boolean;
+  status: RepStatus;
 }
