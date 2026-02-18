@@ -159,7 +159,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+      <div className="bg-white w-full max-m-md rounded-[32px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
         
         {/* Header */}
         <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
@@ -192,7 +192,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
                   onClick={() => { setScanPreview(null); setSuggestions([]); }}
                   className="absolute top-3 right-3 p-2 bg-white/90 text-rose-500 rounded-xl shadow-md hover:bg-white transition-all"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M 4.293 4.293 a 1 1 0 0 1 1.414 0 L 10 8.586 l 4.293 -4.293 a 1 1 0 1 1 1.414 1.414 L 11.414 10 l 4.293 4.293 a 1 1 0 0 1 -1.414 1.414 L 10 11.414 l -4.293 4.293 a 1 1 0 0 1 -1.414 -1.414 L 8.586 10 4.293 5.707 a 1 1 0 0 1 0 -1.414 z" clipRule="evenodd" /></svg>
                 </button>
               </div>
             ) : (

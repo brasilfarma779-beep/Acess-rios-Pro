@@ -46,7 +46,6 @@ const App: React.FC = () => {
   const [isRepOpen, setIsRepOpen] = useState(false);
   const [isProdOpen, setIsProdOpen] = useState(false);
   
-  // Added missing state for editing products and movements to fix reference errors
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
   const [editingProd, setEditingProd] = useState<Product | null>(null);
   const [editingMov, setEditingMov] = useState<Movement | null>(null);
@@ -102,18 +101,23 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-32">
+    <div className="min-h-screen bg-zinc-50 pb-32 font-sans">
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-40 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-zinc-900 p-2 rounded-xl text-white shadow-lg rotate-3">
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17z"/></svg>
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-md border border-zinc-100 bg-zinc-50 flex items-center justify-center p-1">
+              <img src="logo.png" alt="Logo HUB SOBERANO" className="h-full w-full object-contain" onError={(e) => {
+                // Fallback caso o arquivo não exista ainda
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.parentElement!.innerHTML = '<div class="text-xs font-black text-zinc-400">HS</div>';
+              }} />
             </div>
-            <h1 className="text-xl font-black italic tracking-tighter text-zinc-900 uppercase">HUB SOBERANA</h1>
+            <h1 className="text-xl font-black italic tracking-tighter text-zinc-900 uppercase">HUB SOBERANO</h1>
           </div>
           <div className="flex gap-2">
-             <button onClick={exportFullData} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></button>
-             <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button>
+             <button title="Exportar Backup" onClick={exportFullData} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></button>
+             <button title="Importar Backup" onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button>
              <input type="file" ref={fileInputRef} onChange={handleImportBackup} accept=".json" className="hidden" />
           </div>
         </div>
@@ -126,7 +130,7 @@ const App: React.FC = () => {
             {/* ESTEIRA DE CADASTRO INTELIGENTE */}
             <section className="bg-zinc-900 p-8 md:p-10 rounded-[48px] shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 right-0 p-12 opacity-10 text-emerald-500 pointer-events-none rotate-12">
-                  <svg className="h-48 w-48" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                  <svg className="h-48 w-48" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 5 a 1 1 0 0 1 1 1 v 3 h 3 a 1 1 0 1 1 0 2 h -3 v 3 a 1 1 0 1 1 -2 0 v -3 H 6 a 1 1 0 1 1 0 -2 h 3 V 6 a 1 1 0 0 1 1 -1 z" clipRule="evenodd" /></svg>
                </div>
                
                <div className="relative z-10">
@@ -170,7 +174,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatsCard label="Vendido (Mês)" value={formatCurrency(stats.totalSold)} colorClass="text-zinc-900" />
               <StatsCard label="Lucro Real" value={formatCurrency(stats.profit)} colorClass="text-emerald-600" />
-              <div className="bg-white p-8 rounded-[40px] border border-zinc-100 flex flex-col justify-center">
+              <div className="bg-white p-8 rounded-[40px] border border-zinc-100 flex flex-col justify-center shadow-sm">
                 <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 italic">Itens no Estoque</p>
                 <h3 className="text-3xl font-black text-zinc-900 tracking-tighter">{stats.totalItems} un.</h3>
               </div>
@@ -217,7 +221,7 @@ const App: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                  {products.map(p => (
-                   <div key={p.id} onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="bg-white p-8 rounded-[40px] border border-zinc-100 hover:border-zinc-900 transition-all group cursor-pointer">
+                   <div key={p.id} onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="bg-white p-8 rounded-[40px] border border-zinc-100 hover:border-zinc-900 transition-all group cursor-pointer shadow-sm">
                       <span className="text-[9px] font-black bg-zinc-100 px-3 py-1.5 rounded-full uppercase italic text-zinc-400">{p.category}</span>
                       <h4 className="text-xl font-black text-zinc-900 uppercase italic mt-4">{p.name}</h4>
                       <div className="flex justify-between items-end mt-8">
@@ -239,7 +243,7 @@ const App: React.FC = () => {
         <NavBtn active={activeTab === 'movimentacoes'} onClick={() => setActiveTab('movimentacoes')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>} label="Histórico" />
       </nav>
 
-      {/* MODAIS - Adjusted to use editing state variables and updated onSave to handle edits correctly */}
+      {/* MODAIS */}
       <MovementModal isOpen={isMovOpen} onClose={() => { setIsMovOpen(false); setEditingMov(null); setMovType('Vendido'); }} editingMovement={editingMov} reps={reps} products={products} initialType={movType} initialRepId={selectedRepId} onSave={m => setMovements(prev => { const e = prev.find(x => x.id === m.id); return e ? prev.map(x => x.id === m.id ? m : x) : [m, ...prev]; })} />
       <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} />
       <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />

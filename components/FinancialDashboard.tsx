@@ -73,9 +73,9 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ movements, prod
           <div className="flex h-full items-center gap-10 pt-4">
              <div className="relative w-40 h-40">
                 <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                  <path className="text-zinc-100" strokeDasharray="100, 100" strokeWidth="5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className="text-emerald-500 transition-all duration-1000" strokeDasharray={`${(totalProfit / (totalSold || 1)) * 100}, 100`} strokeWidth="5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className="text-rose-400 transition-all duration-1000" strokeDasharray={`${(totalComm / (totalSold || 1)) * 100}, 100`} strokeDashoffset={`-${(totalProfit / (totalSold || 1)) * 100}`} strokeWidth="5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-zinc-100" strokeDasharray="100, 100" strokeWidth="5" stroke="currentColor" fill="none" d="M 18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-emerald-500 transition-all duration-1000" strokeDasharray={`${(totalProfit / (totalSold || 1)) * 100}, 100`} strokeWidth="5" stroke="currentColor" fill="none" d="M 18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-rose-400 transition-all duration-1000" strokeDasharray={`${(totalComm / (totalSold || 1)) * 100}, 100`} strokeDashoffset={`-${(totalProfit / (totalSold || 1)) * 100}`} strokeWidth="5" stroke="currentColor" fill="none" d="M 18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                    <p className="text-[10px] font-black text-zinc-400 uppercase">Bruto</p>
