@@ -107,7 +107,6 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-md border border-zinc-100 bg-zinc-50 flex items-center justify-center p-1">
               <img src="logo.png" alt="Logo HUB SOBERANO" className="h-full w-full object-contain" onError={(e) => {
-                // Fallback caso o arquivo não exista ainda
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 target.parentElement!.innerHTML = '<div class="text-xs font-black text-zinc-400">HS</div>';
@@ -165,10 +164,26 @@ const App: React.FC = () => {
 
             {/* AÇÕES DE GESTÃO RÁPIDA */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-               <DashboardActionBtn onClick={() => { setMovType('Vendido'); setIsMovOpen(true); }} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2" /></svg>} label="Lançar Venda" />
-               <DashboardActionBtn onClick={() => { setSelectedRepId(undefined); setIsMountOpen(true); }} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2" /></svg>} label="Nova Maleta" />
-               <DashboardActionBtn onClick={() => { setEditingRep(null); setIsRepOpen(true); }} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} label="Vendedora" />
-               <DashboardActionBtn onClick={() => setActiveTab('financeiro')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2" /></svg>} label="Relatórios" />
+               <DashboardActionBtn 
+                  onClick={() => { setMovType('Vendido'); setIsMovOpen(true); }} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a.75.75 0 00-1.258 0A10.51 10.51 0 012.25 10.5a.75.75 0 000 1.5 10.51 10.51 0 014.327 5.803.75.75 0 001.258 0 10.51 10.51 0 0110.33 0 .75.75 0 001.258 0 10.51 10.51 0 014.327-5.803.75.75 0 000-1.5 10.51 10.51 0 01-4.327-5.803.75.75 0 00-1.258 0 10.51 10.51 0 01-10.33 0z" /></svg>} 
+                  label="REGISTRAR TRIUNFO" 
+               />
+               <DashboardActionBtn 
+                  onClick={() => { setSelectedRepId(undefined); setIsMountOpen(true); }} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} 
+                  label="EXPEDIR TESOURO" 
+               />
+               <DashboardActionBtn 
+                  onClick={() => { setEditingRep(null); setIsRepOpen(true); }} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>} 
+                  label="VINCULAR ELITE" 
+               />
+               <DashboardActionBtn 
+                  onClick={() => setActiveTab('financeiro')} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} 
+                  label="VISÃO SOBERANA" 
+               />
             </section>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -187,7 +202,7 @@ const App: React.FC = () => {
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
                 <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Equipe</h2>
-                <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">Cadastrar Vendedora</button>
+                <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">CONVOCAR TALENTO</button>
               </div>
               <div className="grid grid-cols-1 gap-6">
                  {summaries.map(s => (
@@ -213,7 +228,7 @@ const App: React.FC = () => {
         {activeTab === 'produtos' && (
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
-                <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Catálogo</h2>
+                <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Acervo</h2>
                 <div className="flex gap-2">
                    <button onClick={() => setIsPasteModalOpen(true)} className="bg-zinc-100 text-zinc-600 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Colar Lote</button>
                    <button onClick={() => { setEditingProd(null); setIsProdOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">Novo Item</button>
@@ -236,10 +251,30 @@ const App: React.FC = () => {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-zinc-100 px-8 py-6 flex justify-between items-center z-50 rounded-t-[40px] shadow-lg">
-        <NavBtn active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3" /></svg>} label="Início" />
-        <NavBtn active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2" /></svg>} label="Financeiro" />
-        <NavBtn active={activeTab === 'maletas'} onClick={() => setActiveTab('maletas')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} label="Maletas" />
-        <NavBtn active={activeTab === 'produtos'} onClick={() => setActiveTab('produtos')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4" /></svg>} label="Catálogo" />
+        <NavBtn 
+          active={activeTab === 'dashboard'} 
+          onClick={() => setActiveTab('dashboard')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>} 
+          label="MEU HUB" 
+        />
+        <NavBtn 
+          active={activeTab === 'financeiro'} 
+          onClick={() => setActiveTab('financeiro')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+          label="COFRE REAL" 
+        />
+        <NavBtn 
+          active={activeTab === 'maletas'} 
+          onClick={() => setActiveTab('maletas')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745zM3.136 11.562L12 13l8.864-1.438A23.913 23.913 0 0012 10a23.914 23.914 0 00-8.864 1.562zM12 2l4 4V2H8v4l4-4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13a2 2 0 100-4 2 2 0 000 4z" /></svg>} 
+          label="EQUIPE DE ELITE" 
+        />
+        <NavBtn 
+          active={activeTab === 'produtos'} 
+          onClick={() => setActiveTab('produtos')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 5l6-4 6 4m-12 0l6 14 6-14M6 5l12 0" /></svg>} 
+          label="ACERVO SOBERANO" 
+        />
         <NavBtn active={activeTab === 'movimentacoes'} onClick={() => setActiveTab('movimentacoes')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>} label="Histórico" />
       </nav>
 
