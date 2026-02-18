@@ -1,5 +1,5 @@
 {
-  "name": "Controle de Vendas Pro",
+  "name": "Hub",
   "description": "Um sistema simples e elegante para controle de vendas e cálculo automático de comissões, projetado para facilidade de uso em dispositivos móveis e desktop.",
   "requestFramePermissions": [
     "camera"

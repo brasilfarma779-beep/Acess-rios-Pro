@@ -7,7 +7,9 @@ export enum Category {
   ANEIS = 'Anéis'
 }
 
-export type MovementType = 'Entregue' | 'Vendido' | 'Devolvido' | 'Reposição';
+export type MovementType = 'Entregue' | 'Vendido' | 'Devolvido' | 'Reposição' | 'Ajuste';
+
+export type AdjustmentTarget = 'sold' | 'commission' | 'total' | 'additional';
 
 export type SaleStatus = 'Vendida' | 'Não Vendida' | 'Cancelada';
 
@@ -42,6 +44,7 @@ export interface Movement {
   quantity: number;
   value: number; 
   image?: string;
+  adjustmentTarget?: AdjustmentTarget;
 }
 
 export interface Sale {
@@ -67,6 +70,7 @@ export interface MaletaSummary {
   commissionRate: number;
   commissionValue: number;
   ownerValue: number;
+  additionalValue: number;
   isClosed: boolean;
   status: RepStatus;
 }
