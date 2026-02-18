@@ -106,7 +106,7 @@ const App: React.FC = () => {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-md border border-zinc-100 bg-zinc-50 flex items-center justify-center p-1">
-              <img src="logo.png" alt="Logo HUB SOBERANO" className="h-full w-full object-contain" onError={(e) => {
+              <img src="https://i.imgur.com/aXyxkp9.png" alt="Logo HUB SOBERANO" className="h-full w-full object-contain" onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 target.parentElement!.innerHTML = '<div class="text-xs font-black text-zinc-400">HS</div>';
