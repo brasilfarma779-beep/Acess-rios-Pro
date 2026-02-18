@@ -10,6 +10,7 @@ import ProductModal from './components/ProductModal.tsx';
 import MaletaMountModal from './components/MaletaMountModal.tsx';
 import OCRModal from './components/OCRModal.tsx';
 import FinancialDashboard from './components/FinancialDashboard.tsx';
+import MovementsList from './components/MovementsList.tsx';
 
 type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes';
 
@@ -198,6 +199,12 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'financeiro' && <FinancialDashboard movements={movements} products={products} summaries={summaries} />}
+        {activeTab === 'movimentacoes' && (
+          <div className="space-y-12 animate-in fade-in duration-500">
+            <FinancialDashboard movements={movements} products={products} summaries={summaries} />
+            <MovementsList movements={movements} products={products} reps={reps} />
+          </div>
+        )}
         {activeTab === 'maletas' && (
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
