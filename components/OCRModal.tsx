@@ -34,23 +34,18 @@ const OCRModal: React.FC<OCRModalProps> = ({ isOpen, onClose, onImport }) => {
           {
             parts: [
               { inlineData: { data: base64Data, mimeType: file.type } },
-              { text: `Aja como um Desenvolvedor Senior Front-end. 
-                       Estou te enviando prints/fotos de uma lista de estoque real (PDF) ou rascunho de fechamento (caderno).
-                       Eu preciso popular meu banco de dados com esses produtos reais.
+              { text: `Você é um scanner de precisão para joalheria. 
+                       Analise a foto da etiqueta ou da peça de semijoia. 
+                       Extraia os dados técnicos da peça:
                        
-                       TAREFA 1: Extração de Dados (OCR)
-                       Analise as imagens e extraia TODOS os itens linha por linha.
-                       Identifique: 
-                       - Nome do Produto (Ex: 'Bracelete Cravejado')
-                       - Preço/Valor (Ex: 'R$ 149,90' vira 149.90)
-                       - Categoria (Brinco, Pulseira, Colar, Anel, Conjuntos, etc.)
-                       - Código (Se houver código impresso ao lado)
+                       - name: Nome amigável (Ex: Brinco Argola G)
+                       - code: SKU ou Código que aparece na etiqueta (Ex: BG-01)
+                       - price: O valor em R$ (apenas números, Ex: 89.90)
+                       - category: Selecione a mais adequada entre: [Brincos, Conjuntos, Duplas e Trios, Pulseiras e Colares, Anéis]
+                       - stock: Se não houver informação, use 10 por padrão.
                        
-                       Retorne um array JSON pronto para importar. 
-                       Formato: [{"name": string, "code": string, "price": number, "stock": number, "category": string}]
-                       
-                       As categorias permitidas são: ${Object.values(Category).join(', ')}.
-                       Retorne APENAS o JSON puro.` }
+                       Retorne um ARRAY JSON. Se houver mais de uma peça na foto, liste todas.
+                       Responda apenas com o JSON.` }
             ]
           }
         ],
@@ -76,58 +71,58 @@ const OCRModal: React.FC<OCRModalProps> = ({ isOpen, onClose, onImport }) => {
       const extractedData = JSON.parse(response.text || '[]');
       const products: Product[] = extractedData.map((item: any) => ({
         id: generateId(),
-        name: item.name || 'Produto Importado',
-        code: item.code || '',
+        name: item.name || 'Semijoia Importada',
+        code: item.code || `SKU-${generateId().toUpperCase().substring(0,4)}`,
         price: item.price || 0,
-        stock: item.stock || 0,
+        stock: item.stock || 10,
         category: Object.values(Category).includes(item.category as Category) ? item.category as Category : Category.BRINCOS
       }));
 
       onImport(products);
       setPreviewUrl(null);
       onClose();
+      alert(`${products.length} itens identificados e salvos no catálogo!`);
     } catch (error) {
       console.error(error);
-      alert('Erro ao processar imagem. Verifique se os dados estão bem nítidos e tente novamente.');
+      alert('A IA não conseguiu ler nitidamente. Tente tirar a foto com mais luz ou selecione um item por vez.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-md">
-      <div className="bg-white w-full max-w-xl rounded-[40px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-zinc-900/90 backdrop-blur-xl">
+      <div className="bg-white w-full max-w-xl rounded-[48px] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
         <div className="p-10 text-center">
-          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[32px] flex items-center justify-center mx-auto mb-8">
+            <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
           
-          <h2 className="text-3xl font-black text-zinc-900 mb-2 italic">Módulo IA Vision</h2>
-          <p className="text-zinc-500 mb-10 font-medium">Use a câmera para digitalizar PDFs de estoque ou rascunhos de cadernos de fechamento.</p>
+          <h2 className="text-3xl font-black text-zinc-900 mb-2 italic uppercase tracking-tighter">Scanner IA vision</h2>
+          <p className="text-zinc-500 mb-10 font-medium px-4">Aponte para as etiquetas das peças ou para o código de barras para cadastrar no estoque instantaneamente.</p>
 
           {isProcessing ? (
             <div className="py-12 flex flex-col items-center">
-              <div className="w-20 h-20 border-[6px] border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-6"></div>
-              <p className="text-emerald-600 font-black animate-pulse uppercase tracking-[0.2em] text-xs">A IA está decifrando os dados...</p>
-              {previewUrl && <img src={previewUrl} className="mt-10 h-48 rounded-[32px] object-cover border-4 border-zinc-50 shadow-xl opacity-50 grayscale" />}
+              <div className="w-16 h-16 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-6"></div>
+              <p className="text-emerald-600 font-black animate-pulse uppercase tracking-widest text-xs">A IA está lendo as etiquetas...</p>
+              {previewUrl && <img src={previewUrl} className="mt-8 h-40 rounded-3xl object-cover border-4 border-zinc-50 shadow-xl opacity-50" />}
             </div>
           ) : (
             <div className="space-y-4">
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-6 rounded-[28px] shadow-2xl shadow-emerald-100 transition-all text-xl flex items-center justify-center gap-4 active:scale-95"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-zinc-900 font-black py-6 rounded-[28px] shadow-xl transition-all text-xl flex items-center justify-center gap-4 active:scale-95"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                DIGITALIZAR AGORA
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" /></svg>
+                ABRIR CÂMERA
               </button>
               <button 
                 onClick={onClose}
-                className="w-full bg-zinc-100 text-zinc-400 font-black py-4 rounded-[28px] uppercase text-[10px] tracking-widest"
+                className="w-full bg-zinc-100 text-zinc-400 font-black py-4 rounded-[28px] uppercase text-[10px] tracking-widest hover:bg-zinc-200"
               >
-                Voltar ao sistema
+                Cancelar
               </button>
             </div>
           )}
