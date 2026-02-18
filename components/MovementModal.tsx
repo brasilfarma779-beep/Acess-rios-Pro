@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Category, Movement, MovementType, Representative, Product } from '../types';
-import { generateId, fileToBase64 } from '../utils';
+// Fixed: Added missing formatCurrency to imports
+import { generateId, fileToBase64, formatCurrency } from '../utils';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface MovementModalProps {
@@ -10,9 +11,9 @@ interface MovementModalProps {
   onSave: (mov: Movement) => void;
   reps: Representative[];
   products: Product[];
+  editingMovement?: Movement | null;
   initialType?: MovementType;
   initialRepId?: string;
-  autoOpenScanner?: boolean;
 }
 
 const MovementModal: React.FC<MovementModalProps> = ({ 
@@ -21,39 +22,45 @@ const MovementModal: React.FC<MovementModalProps> = ({
   onSave, 
   reps, 
   products,
+  editingMovement = null,
   initialType = 'Vendido',
-  initialRepId,
-  autoOpenScanner = false
+  initialRepId
 }) => {
   const [repId, setRepId] = useState('');
   const [productId, setProductId] = useState('');
   const [type, setType] = useState<MovementType>(initialType);
   const [quantity, setQuantity] = useState(1);
   const [unitValue, setUnitValue] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setType(initialType);
-      if (initialRepId) setRepId(initialRepId);
-      else if (reps.length > 0 && !repId) setRepId(reps[0].id);
-      
-      setProductId('');
-      setUnitValue('');
-      setQuantity(1);
-      setScanPreview(null);
-
-      // Shortcut para digitalizar imediatamente se solicitado
-      if (autoOpenScanner) {
-        setTimeout(() => {
-          fileInputRef.current?.click();
-        }, 100);
+      if (editingMovement) {
+        setRepId(editingMovement.representativeId);
+        setProductId(editingMovement.productId);
+        setType(editingMovement.type);
+        setQuantity(editingMovement.quantity);
+        setUnitValue(editingMovement.value.toString());
+        setDate(editingMovement.date.split('T')[0]);
+        setScanPreview(editingMovement.image || null);
+      } else {
+        setType(initialType);
+        if (initialRepId) setRepId(initialRepId);
+        else if (reps.length > 0) setRepId(reps[0].id);
+        setProductId('');
+        setUnitValue('');
+        setQuantity(1);
+        setDate(new Date().toISOString().split('T')[0]);
+        setScanPreview(null);
+        setSuggestions([]);
       }
     }
-  }, [isOpen, initialType, initialRepId, reps, autoOpenScanner]);
+  }, [isOpen, editingMovement, initialType, initialRepId, reps]);
 
   if (!isOpen) return null;
 
@@ -61,45 +68,75 @@ const MovementModal: React.FC<MovementModalProps> = ({
     setProductId(id);
     const prod = products.find(p => p.id === id);
     if (prod) setUnitValue(prod.price.toString());
+    setSuggestions([]);
   };
 
   const handleSmartIdentify = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || products.length === 0) return;
+    if (!file) return;
+    if (products.length === 0) return alert('Cadastre mercadorias no catálogo primeiro.');
 
     setIsScanning(true);
+    setSuggestions([]);
     setScanPreview(URL.createObjectURL(file));
 
     try {
       const base64Data = await fileToBase64(file);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const simplifiedCatalog = products.map(p => ({ id: p.id, nome: p.name, codigo: p.code, preco: p.price }));
+      
+      const simplifiedCatalog = products.map(p => ({
+        id: p.id,
+        nome: p.name,
+        codigo: p.code,
+        preco: p.price
+      }));
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{
-          parts: [
-            { inlineData: { data: base64Data, mimeType: file.type } },
-            { text: `Identifique este acessório no catálogo: ${JSON.stringify(simplifiedCatalog)}. Retorne JSON: {"matchId": "id" ou null}. Contexto da ação: ${type}` }
-          ]
-        }],
-        config: { 
+        contents: [
+          {
+            parts: [
+              { inlineData: { data: base64Data, mimeType: file.type } },
+              { text: `Aja como um assistente de logística de semijoias. 
+                       O contexto atual é uma ${type} (pode ser venda ou reposição de maleta).
+                       Identifique qual produto do catálogo é o da imagem.
+                       
+                       Catálogo: ${JSON.stringify(simplifiedCatalog)}
+                       
+                       Retorne um JSON com:
+                       - matchId: string (se tiver 90% certeza)
+                       - suggestionsIds: array (até 3 similares se houver dúvida)
+                       - reason: string
+                       
+                       Responda apenas com o JSON.` }
+            ]
+          }
+        ],
+        config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              matchId: { type: Type.STRING, nullable: true }
+              matchId: { type: Type.STRING },
+              suggestionsIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+              reason: { type: Type.STRING }
             }
           }
         }
       });
 
       const result = JSON.parse(response.text || '{}');
-      if (result.matchId) handleProductChange(result.matchId);
-      else alert('Não identificado automaticamente. Selecione na lista.');
+      
+      if (result.matchId) {
+        handleProductChange(result.matchId);
+      } else if (result.suggestionsIds?.length > 0) {
+        setSuggestions(products.filter(p => result.suggestionsIds.includes(p.id)));
+      } else {
+        alert('Não identifiquei este item no catálogo.');
+      }
     } catch (error) {
       console.error(error);
-      alert('Erro na conexão com a IA.');
+      alert('Erro na identificação inteligente.');
     } finally {
       setIsScanning(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -111,8 +148,8 @@ const MovementModal: React.FC<MovementModalProps> = ({
     if (!repId || !productId) return alert('Preencha vendedora e produto');
 
     onSave({
-      id: generateId(),
-      date: new Date().toISOString(),
+      id: editingMovement?.id || generateId(),
+      date: new Date(date).toISOString(),
       representativeId: repId,
       productId,
       type,
@@ -120,96 +157,93 @@ const MovementModal: React.FC<MovementModalProps> = ({
       value: parseFloat(unitValue) || 0,
       image: scanPreview || undefined
     });
-    setScanPreview(null);
     onClose();
   };
 
-  const showCamera = type === 'Vendido' || type === 'Reposição' || type === 'Entregue';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+        <div className="p-8 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
           <div>
-            <h2 className="text-xl font-black text-zinc-900 leading-none">Movimentação</h2>
-            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic">{type}</p>
+            <h2 className="text-2xl font-black text-zinc-900 leading-none italic uppercase tracking-tighter">{editingMovement ? 'Editar Ação' : 'Lançar Agora'}</h2>
+            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-2 italic">{type}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-zinc-400 hover:bg-zinc-200 rounded-full transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          <button onClick={onClose} className="p-3 text-zinc-400 hover:text-rose-500 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          {showCamera && (
-            <div className="relative group">
-              {scanPreview ? (
-                <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-2 border-emerald-500 mb-2">
-                  <img src={scanPreview} className="w-full h-full object-cover" alt="Preview" />
-                  {isScanning && (
-                    <div className="absolute inset-0 bg-emerald-600/40 flex items-center justify-center text-white">
-                      <div className="animate-spin h-8 w-8 border-4 border-white/30 border-t-white rounded-full" />
-                    </div>
-                  )}
-                  <button type="button" onClick={() => setScanPreview(null)} className="absolute top-2 right-2 bg-white p-1 rounded-full text-rose-500 shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  type="button" 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-8 border-4 border-dashed border-emerald-100 bg-emerald-50/30 rounded-3xl flex flex-col items-center gap-2 hover:bg-emerald-50 transition-all group"
-                >
-                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        <form onSubmit={handleSubmit} className="p-8 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+          
+          <div className="relative group mb-2">
+            {scanPreview ? (
+              <div className="relative w-full aspect-square rounded-[32px] overflow-hidden border-4 border-zinc-50 shadow-inner">
+                <img src={scanPreview} className="w-full h-full object-cover" />
+                {isScanning && (
+                  <div className="absolute inset-0 bg-emerald-600/40 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+                    <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-2"></div>
+                    <span className="font-black text-[10px] uppercase tracking-widest">IA Analisando...</span>
                   </div>
-                  <span className="font-black text-emerald-800 text-[10px] uppercase tracking-widest">Digitalizar Peça</span>
+                )}
+                <button type="button" onClick={() => setScanPreview(null)} className="absolute top-4 right-4 p-2 bg-white/90 text-rose-500 rounded-xl shadow-lg">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-              )}
-            </div>
-          )}
-          <input type="file" ref={fileInputRef} onChange={handleSmartIdentify} accept="image/*" capture="environment" className="hidden" />
-
-          <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Ação</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['Entregue', 'Vendido', 'Devolvido', 'Reposição'] as MovementType[]).map(t => (
-                <button key={t} type="button" onClick={() => setType(t)} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${type === t ? 'bg-zinc-800 text-white shadow-lg' : 'bg-zinc-100 text-zinc-400'}`}>
-                  {t}
-                </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-8 border-4 border-dashed border-emerald-50 bg-emerald-50/30 rounded-[32px] flex flex-col items-center justify-center gap-2 hover:bg-emerald-50 transition-all group">
+                <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </div>
+                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Identificar por Foto</span>
+              </button>
+            )}
+            <input type="file" ref={fileInputRef} onChange={handleSmartIdentify} accept="image/*" capture="environment" className="hidden" />
           </div>
 
-          <div className="space-y-3 pt-2">
+          {suggestions.length > 0 && (
+            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 space-y-2">
+               <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Sugeridos pela IA:</p>
+               {suggestions.map(p => (
+                 <button key={p.id} type="button" onClick={() => handleProductChange(p.id)} className="w-full flex justify-between p-3 bg-white rounded-xl border border-amber-200 text-left hover:border-emerald-500 transition-all">
+                    <span className="text-xs font-black text-zinc-800">{p.name}</span>
+                    {/* Fixed: formatCurrency is now imported */}
+                    <span className="text-xs font-black text-emerald-600">{formatCurrency(p.price)}</span>
+                 </button>
+               ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            {(['Vendido', 'Reposição', 'Entregue', 'Devolvido'] as MovementType[]).map(t => (
+              <button key={t} type="button" onClick={() => setType(t)} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${type === t ? 'bg-zinc-900 text-white shadow-xl' : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'}`}>{t}</button>
+            ))}
+          </div>
+
+          <div className="space-y-4 pt-2">
             <div>
-              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Vendedora</label>
-              <select value={repId} onChange={e => setRepId(e.target.value)} required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-sm outline-none focus:border-emerald-500 transition-all">
+              <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 italic">Vendedora</label>
+              <select value={repId} onChange={e => setRepId(e.target.value)} required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-xs outline-none focus:border-zinc-900 transition-all">
                 {reps.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Produto no Catálogo</label>
-              <select value={productId} onChange={e => handleProductChange(e.target.value)} required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-sm outline-none focus:border-emerald-500 transition-all">
-                <option value="">Selecione...</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code || 'Sem Cod.'})</option>)}
+              <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 italic">Produto</label>
+              <select value={productId} onChange={e => handleProductChange(e.target.value)} required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-xs outline-none focus:border-zinc-900 transition-all">
+                <option value="">Selecione ou use a câmera...</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code || 'S/C'})</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Qtd</label>
-                <input type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black outline-none focus:border-emerald-500" />
+                <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 italic">Quantidade</label>
+                <input type="number" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-xs outline-none focus:border-zinc-900" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Valor Unit. (R$)</label>
-                <input type="text" value={unitValue} onChange={e => setUnitValue(e.target.value.replace(/[^0-9.]/g, ''))} className="w-full p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl font-black text-emerald-700 outline-none focus:border-emerald-500" />
+                <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 italic">Valor Un. (R$)</label>
+                <input type="text" value={unitValue} onChange={e => setUnitValue(e.target.value.replace(/[^0-9.]/g, ''))} className="w-full p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl font-black text-emerald-700 text-xs outline-none focus:border-emerald-500" />
               </div>
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-emerald-100 mt-4 active:scale-95 transition-all text-sm uppercase tracking-widest">
-            Confirmar {type}
-          </button>
+          <button type="submit" className="w-full bg-zinc-900 text-white font-black py-5 rounded-[24px] shadow-2xl mt-4 active:scale-95 transition-all text-xs uppercase tracking-widest">Finalizar Ação</button>
         </form>
       </div>
     </div>

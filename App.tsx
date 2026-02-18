@@ -1,445 +1,385 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Movement, Representative, Product, Category, MaletaSummary, MovementType, RepStatus, AdjustmentTarget } from './types.ts';
-import { calculateMaletaSummaries, formatCurrency, formatDate, generateId, calculateCommission, parsePastedProducts } from './utils.ts';
+import { Movement, Representative, Product, Category, MaletaSummary, MovementType, AdjustmentTarget } from './types.ts';
+import { calculateMaletaSummaries, formatCurrency, formatDate, generateId, parsePastedProducts, calculateCommissionRate } from './utils.ts';
 import StatsCard from './components/StatsCard.tsx';
 import MovementModal from './components/MovementModal.tsx';
 import RepresentativeModal from './components/RepresentativeModal.tsx';
 import ProductModal from './components/ProductModal.tsx';
-import OCRModal from './components/OCRModal.tsx';
 import AdjustmentModal from './components/AdjustmentModal.tsx';
+import MaletaMountModal from './components/MaletaMountModal.tsx';
+import OCRModal from './components/OCRModal.tsx';
 
 type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes';
-type RepSubTab = 'campo' | 'base';
-
-interface SpreadsheetRow {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  quantity: number;
-}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [activeRepTab, setActiveRepTab] = useState<RepSubTab>('campo');
+  const [productSearch, setProductSearch] = useState('');
+  const [repSearch, setRepSearch] = useState('');
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+  const [isOCRModalOpen, setIsOCRModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   
-  const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(() => {
-    const saved = localStorage.getItem('spreadsheet_draft');
-    return saved ? JSON.parse(saved) : [{ id: generateId(), name: '', category: '', price: 0, quantity: 0 }];
-  });
-
-  const [movements, setMovements] = useState<Movement[]>(() => {
-    const saved = localStorage.getItem('movs_v5_final');
-    return saved ? JSON.parse(saved) : [];
-  });
-
   const [reps, setReps] = useState<Representative[]>(() => {
-    const saved = localStorage.getItem('reps_v5_final');
-    if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
-    return [{
-      id: 'rep-andressa',
-      name: 'Andressa Souza',
-      phone: '(11) 99999-9999',
-      city: 'São Paulo',
-      startDate: '2026-02-15',
-      endDate: '2026-04-15',
-      active: true,
-      status: 'Em Campo'
+    const saved = localStorage.getItem('hub_v5_reps');
+    return saved ? JSON.parse(saved) : [{
+      id: 'rep-1', name: 'Andressa Souza', phone: '(11) 99999-9999', city: 'São Paulo', startDate: '2026-02-15', endDate: '2026-04-15', active: true, status: 'Em Campo'
     }];
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('prods_v5_final');
-    if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
-    return [
-      { id: 'p1', name: 'Kit Maleta Premium', code: 'KIT-01', category: Category.CONJUNTOS, price: 8634, stock: 10 },
-      { id: 'p2', name: 'Brinco Argola Ouro', code: 'ARG-01', category: Category.BRINCOS, price: 4200, stock: 3 }
+    const saved = localStorage.getItem('hub_v5_prods');
+    return saved ? JSON.parse(saved) : [
+      { id: 'p1', name: 'Kit Maleta Premium', code: 'KIT-P', category: Category.CONJUNTOS, price: 4200, stock: 50 },
+      { id: 'p2', name: 'Brinco Argola Cravejada', code: 'BR-01', category: Category.BRINCOS, price: 120, stock: 100 }
     ];
   });
 
-  useEffect(() => localStorage.setItem('movs_v5_final', JSON.stringify(movements)), [movements]);
-  useEffect(() => localStorage.setItem('reps_v5_final', JSON.stringify(reps)), [reps]);
-  useEffect(() => localStorage.setItem('prods_v5_final', JSON.stringify(products)), [products]);
-  useEffect(() => localStorage.setItem('spreadsheet_draft', JSON.stringify(spreadsheetRows)), [spreadsheetRows]);
+  const [movements, setMovements] = useState<Movement[]>(() => {
+    const saved = localStorage.getItem('hub_v5_movs');
+    return saved ? JSON.parse(saved) : [];
+  });
 
+  useEffect(() => localStorage.setItem('hub_v5_reps', JSON.stringify(reps)), [reps]);
+  useEffect(() => localStorage.setItem('hub_v5_prods', JSON.stringify(products)), [products]);
+  useEffect(() => localStorage.setItem('hub_v5_movs', JSON.stringify(movements)), [movements]);
+
+  // Modais
   const [isMovOpen, setIsMovOpen] = useState(false);
-  const [defaultMovType, setDefaultMovType] = useState<MovementType>('Vendido');
-  const [defaultRepId, setDefaultRepId] = useState<string | undefined>(undefined);
-  
+  const [isMountOpen, setIsMountOpen] = useState(false);
   const [isRepOpen, setIsRepOpen] = useState(false);
   const [isProdOpen, setIsProdOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isOCROpen, setIsOCROpen] = useState(false);
-  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
-  const [productSearch, setProductSearch] = useState('');
-  
-  const [editingRep, setEditingRep] = useState<Representative | null>(null);
   const [isAdjOpen, setIsAdjOpen] = useState(false);
+  
+  const [editingMov, setEditingMov] = useState<Movement | null>(null);
+  const [editingRep, setEditingRep] = useState<Representative | null>(null);
+  const [editingProd, setEditingProd] = useState<Product | null>(null);
+  const [selectedRepId, setSelectedRepId] = useState<string | undefined>(undefined);
+  const [movType, setMovType] = useState<MovementType>('Vendido');
   const [adjTarget, setAdjTarget] = useState<AdjustmentTarget>('sold');
 
-  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
-  const [batchRepId, setBatchRepId] = useState<string | null>(null);
-  const [batchStocks, setBatchStocks] = useState<Record<string, number>>({});
-  const [batchSearch, setBatchSearch] = useState('');
-
-  const maletaSummaries = useMemo(() => calculateMaletaSummaries(movements, reps), [movements, reps]);
+  const summaries = useMemo(() => calculateMaletaSummaries(movements, reps), [movements, reps]);
   
-  const stats = useMemo(() => {
-    const totalSold = maletaSummaries.reduce((acc, s) => acc + s.soldValue, 0);
-    const totalCommission = maletaSummaries.reduce((acc, s) => acc + s.commissionValue, 0);
-    const patrimonyInField = maletaSummaries
-      .filter(s => {
-        const r = reps.find(rep => rep.id === s.repId);
-        return r?.status === 'Em Campo';
-      })
-      .reduce((acc, s) => acc + (s.totalDelivered - s.soldValue), 0);
+  const filteredSummaries = useMemo(() => {
+    return summaries.filter(s => s.repName.toLowerCase().includes(repSearch.toLowerCase()));
+  }, [summaries, repSearch]);
 
-    const totalInStock = products.reduce((acc, p) => acc + (p.price * p.stock), 0);
-    const totalBusinessValue = totalInStock + patrimonyInField;
-
-    return { 
-      totalSold, 
-      totalCommission, 
-      totalOwner: totalSold - totalCommission,
-      patrimonyInField,
-      totalBusinessValue
-    };
-  }, [maletaSummaries, reps, products]);
-
-  const renderRepPieChart = (repId: string) => {
-    const summary = maletaSummaries.find(s => s.repId === repId);
-    if (!summary || summary.soldValue === 0) return null;
-
-    const ownerPercent = (summary.ownerValue / summary.soldValue) * 100;
-    const commissionPercent = (summary.commissionValue / summary.soldValue) * 100;
-
-    return (
-      <div className="space-y-4">
-        <div className="flex h-3 w-full bg-zinc-200 rounded-full overflow-hidden shadow-inner">
-          <div style={{ width: `${ownerPercent}%` }} className="bg-zinc-900 h-full transition-all duration-1000" />
-          <div style={{ width: `${commissionPercent}%` }} className="bg-emerald-500 h-full transition-all duration-1000" />
-        </div>
-        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest px-1 leading-none italic">
-          <div className="flex items-center gap-2 text-zinc-900">
-            <span className="w-2 h-2 bg-zinc-900 rounded-full"></span>
-            Dona {Math.round(ownerPercent)}%
-          </div>
-          <div className="flex items-center gap-2 text-emerald-600">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-            Equipe {Math.round(commissionPercent)}%
-          </div>
-        </div>
-      </div>
+  const filteredProducts = useMemo(() => {
+    const s = productSearch.toLowerCase();
+    return products.filter(p => 
+      p.name.toLowerCase().includes(s) || 
+      (p.code && p.code.toLowerCase().includes(s))
     );
-  };
+  }, [products, productSearch]);
 
-  const openBatchEdit = (repId: string) => {
-    const repMovs = movements.filter(m => m.representativeId === repId);
-    const stocks: Record<string, number> = {};
+  const stats = useMemo(() => {
+    const totalSold = summaries.reduce((acc, s) => acc + s.soldValue, 0);
+    const totalCom = summaries.reduce((acc, s) => acc + s.commissionValue, 0);
+    const profit = totalSold - totalCom;
     
-    products.forEach(p => {
-      const delivered = repMovs.filter(m => m.productId === p.id && (m.type === 'Entregue' || m.type === 'Reposição')).reduce((a, b) => a + b.quantity, 0);
-      const sold = repMovs.filter(m => m.productId === p.id && m.type === 'Vendido').reduce((a, b) => a + b.quantity, 0);
-      const returned = repMovs.filter(m => m.productId === p.id && m.type === 'Devolvido').reduce((a, b) => a + b.quantity, 0);
-      const currentQty = delivered - sold - returned;
-      if (currentQty > 0) stocks[p.id] = currentQty;
-    });
+    return { totalSold, totalCom, profit };
+  }, [summaries]);
 
-    setBatchStocks(stocks);
-    setBatchRepId(repId);
-    setBatchSearch('');
-    setIsBatchEditOpen(true);
-  };
-
-  const handleSaveBatch = () => {
-    if (!batchRepId) return;
-    const newMovements: Movement[] = [];
-    const updatedProducts = [...products];
-
-    products.forEach(prod => {
-      const prodId = prod.id;
-      const repMovs = movements.filter(m => m.representativeId === batchRepId && m.productId === prodId);
-      const currentDelivered = repMovs.filter(m => (m.type === 'Entregue' || m.type === 'Reposição')).reduce((a, b) => a + b.quantity, 0);
-      const currentSold = repMovs.filter(m => m.type === 'Vendido').reduce((a, b) => a + b.quantity, 0);
-      const currentReturned = repMovs.filter(m => m.type === 'Devolvido').reduce((a, b) => a + b.quantity, 0);
-      const currentQty = currentDelivered - currentSold - currentReturned;
-      
-      const newQty = batchStocks[prodId] || 0;
-
-      if (newQty !== currentQty) {
-        const diff = newQty - currentQty;
-        const type: MovementType = diff > 0 ? 'Reposição' : 'Ajuste';
-        
-        newMovements.push({
-          id: generateId(),
-          date: new Date().toISOString(),
-          representativeId: batchRepId,
-          productId: prodId,
-          type,
-          quantity: Math.abs(diff),
-          value: prod.price,
-          adjustmentTarget: diff < 0 ? 'total' : undefined
-        });
-
-        const idx = updatedProducts.findIndex(p => p.id === prodId);
-        if (idx !== -1) {
-          if (diff > 0) updatedProducts[idx].stock -= diff;
-          else updatedProducts[idx].stock += Math.abs(diff);
-        }
-      }
-    });
-
-    setMovements(prev => [...newMovements, ...prev]);
-    setProducts(updatedProducts);
-    setIsBatchEditOpen(false);
-    alert('Maleta montada e estoque atualizado!');
-  };
-
-  const toggleRepStatus = (repId: string) => {
-    setReps(prev => prev.map(r => {
-      if (r.id === repId) {
-        const newStatus: RepStatus = r.status === 'Em Campo' ? 'Na Base' : 'Em Campo';
-        return { ...r, status: newStatus, active: newStatus === 'Em Campo' };
-      }
-      return r;
-    }));
-  };
-
-  const openAdjustment = (repId: string, target: AdjustmentTarget) => {
-    setDefaultRepId(repId);
-    setAdjTarget(target);
-    setIsAdjOpen(true);
-  };
-
-  const updateSpreadsheetRow = (id: string, field: keyof SpreadsheetRow, value: any) => {
-    setSpreadsheetRows(spreadsheetRows.map(row => row.id === id ? { ...row, [field]: value } : row));
-  };
-
-  const addSpreadsheetRow = () => {
-    setSpreadsheetRows([...spreadsheetRows, { id: generateId(), name: '', category: '', price: 0, quantity: 0 }]);
-  };
-
-  const handleProcessPaste = () => {
-    if (!pasteText.trim()) return;
-    const newRows = parsePastedProducts(pasteText);
-    const currentValidRows = spreadsheetRows.filter(r => r.name !== '' || r.price !== 0);
-    setSpreadsheetRows([...currentValidRows, ...newRows]);
+  const handleBatchImport = () => {
+    const newItems = parsePastedProducts(pasteText);
+    if (newItems.length === 0) return alert('Nenhum dado válido encontrado.');
+    setProducts(prev => [...prev, ...newItems]);
     setPasteText('');
     setIsPasteModalOpen(false);
   };
 
-  const handleSaveToCatalog = () => {
-    const validRows = spreadsheetRows.filter(r => r.name.trim() !== '' && r.price > 0);
-    if (validRows.length === 0) return alert('Nenhum produto válido.');
-    const newProducts: Product[] = validRows.map(row => ({
-      id: generateId(),
-      name: row.name,
-      code: `PRO-${generateId().toUpperCase().substring(0,4)}`,
-      category: Category.BRINCOS,
-      price: row.price,
-      stock: row.quantity
+  const handleMountSave = (newMovements: Movement[]) => {
+    setMovements(prev => [...newMovements, ...prev]);
+    setProducts(prev => prev.map(p => {
+      const usedCount = newMovements
+        .filter(m => m.productId === p.id)
+        .reduce((sum, m) => sum + m.quantity, 0);
+      return usedCount > 0 ? { ...p, stock: p.stock - usedCount } : p;
     }));
-    setProducts(prev => [...prev, ...newProducts]);
-    setSpreadsheetRows([{ id: generateId(), name: '', category: '', price: 0, quantity: 0 }]);
-    alert('Produtos adicionados ao catálogo!');
+    setIsMountOpen(false);
   };
 
-  const filteredBatchProducts = products.filter(p => 
-    p.name.toLowerCase().includes(batchSearch.toLowerCase()) || 
-    p.code.toLowerCase().includes(batchSearch.toLowerCase()) ||
-    (batchStocks[p.id] || 0) > 0
-  );
-
-  const filteredCatalogProducts = products.filter(p => 
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.code.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.category.toLowerCase().includes(productSearch.toLowerCase())
-  );
-
-  const spreadsheetTotal = useMemo(() => spreadsheetRows.reduce((acc, row) => acc + (row.price * row.quantity), 0), [spreadsheetRows]);
-
-  const openEditProduct = (prod: Product) => {
-    setEditingProduct(prod);
-    setIsProdOpen(true);
-  };
-
-  const handleDeleteProduct = (prodId: string) => {
-    if (window.confirm('Tem certeza que deseja remover este produto do catálogo?')) {
-      setProducts(prev => prev.filter(p => p.id !== prodId));
-      setIsProdOpen(false);
-      setEditingProduct(null);
+  const handleMassStockUpdate = () => {
+    const q = prompt('Definir nova quantidade de estoque para TODOS os itens do catálogo:');
+    if (q !== null) {
+      const newQty = parseInt(q);
+      if (isNaN(newQty)) return alert('Por favor, insira um número válido.');
+      setProducts(prev => prev.map(p => ({ ...p, stock: newQty })));
     }
   };
 
+  const handleDeleteProduct = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este produto do catálogo definitivamente?')) {
+      setProducts(prev => prev.filter(p => p.id !== id));
+      setIsProdOpen(false);
+    }
+  };
+
+  const handleQuickRefill = (repId: string) => {
+    setSelectedRepId(repId);
+    setMovType('Reposição');
+    setIsMovOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-50 pb-32 font-sans selection:bg-emerald-100">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-40 px-6 py-5 shadow-sm backdrop-blur-md bg-white/80">
+    <div className="min-h-screen bg-zinc-50 pb-32">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-zinc-100 sticky top-0 z-40 px-6 py-5 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="bg-emerald-600 p-2.5 rounded-xl shadow-lg shadow-emerald-200">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276l-4 2a1 1 0 000 1.788l4 2A1 1 0 0016.658 11.236l4-2a1 1 0 000-1.788l-4-2a1 1 0 00-1.447 0zM7 10a1 1 0 011-1h1a1 1 0 110 2H8a1 1 0 01-1-1z" /></svg>
+            <div className="bg-zinc-900 p-2.5 rounded-2xl text-white shadow-xl rotate-3">
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276l-4 2a1 1 0 000 1.788l4 2A1 1 0 0016.658 11.236l4-2a1 1 0 000-1.788l-4-2a1 1 0 00-1.447 0zM7 10a1 1 0 011-1h1a1 1 0 110 2H8a1 1 0 01-1-1z" /></svg>
             </div>
             <div>
-              <h1 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">HUB</h1>
-              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic leading-none">Inteligência em Vendas</p>
+              <h1 className="text-2xl font-black italic tracking-tighter leading-none text-zinc-900">HUB</h1>
+              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-1 italic">Soberana Gestão</p>
             </div>
+          </div>
+          <div className="flex gap-3">
+             <button onClick={() => setIsOCRModalOpen(true)} className="bg-emerald-500 text-zinc-900 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/10 active:scale-95 transition-all">Digitalizar Catálogo</button>
+             <button onClick={() => { setSelectedRepId(undefined); setIsMountOpen(true); }} className="bg-zinc-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Montar Maleta</button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 md:p-6">
+      <main className="max-w-6xl mx-auto p-4 md:p-8">
         {activeTab === 'dashboard' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatsCard label="Faturamento Bruto" value={formatCurrency(stats.totalSold)} colorClass="text-zinc-900" />
-              <StatsCard label="Comissões Equipe" value={formatCurrency(stats.totalCommission)} colorClass="text-emerald-600" />
-              <div className="bg-zinc-900 p-8 rounded-[40px] shadow-2xl relative overflow-hidden group">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2 italic">Lucro da Dona (Real)</p>
-                <h3 className="text-3xl font-black text-emerald-400 tracking-tighter">{formatCurrency(stats.totalOwner)}</h3>
+              <StatsCard label="Vendido (Mês)" value={formatCurrency(stats.totalSold)} colorClass="text-zinc-900" />
+              <StatsCard label="Comissões Pagas" value={formatCurrency(stats.totalCom)} colorClass="text-rose-500" />
+              <div className="bg-white p-6 rounded-[32px] border-2 border-emerald-500 shadow-xl shadow-emerald-500/5">
+                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1 italic">Lucro Líquido (Real)</p>
+                <h3 className="text-3xl font-black text-zinc-900 tracking-tighter">{formatCurrency(stats.profit)}</h3>
               </div>
             </div>
 
-            <section className="bg-white rounded-[48px] p-8 md:p-12 border border-zinc-200 shadow-sm overflow-hidden relative">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50/50 rounded-full blur-3xl -z-0 translate-x-1/2 -translate-y-1/2" />
-               <div className="relative z-10">
-                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                    <div>
-                      <h2 className="text-3xl font-black text-zinc-900 uppercase tracking-tight italic leading-none">Cadastro Rápido</h2>
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2 tracking-widest italic leading-none">Modo Planilha Dinâmica</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => setIsPasteModalOpen(true)} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-6 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-100 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                        Colar Vários
-                      </button>
-                      <button onClick={addSpreadsheetRow} className="bg-zinc-900 hover:bg-black text-white px-6 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">+ Nova Linha</button>
-                    </div>
-                 </div>
-                 <div className="overflow-x-auto custom-scrollbar pb-4">
-                   <table className="w-full border-separate border-spacing-y-2">
-                      <thead>
-                         <tr className="text-zinc-400 text-[10px] font-black uppercase tracking-widest italic">
-                            <th className="px-6 py-2 text-left">Item / Mercadoria</th>
-                            <th className="px-6 py-2 text-left">Preço Venda</th>
-                            <th className="px-6 py-2 text-left">Estoque Inicial</th>
-                            <th className="px-6 py-2 text-right">Total Previsto</th>
-                         </tr>
-                      </thead>
-                      <tbody>
-                         {spreadsheetRows.map((row) => (
-                           <tr key={row.id} className="bg-zinc-50/50 hover:bg-zinc-50 transition-colors group">
-                              <td className="px-6 py-4 rounded-l-[24px] border-y border-l border-zinc-100"><input type="text" value={row.name} onChange={(e) => updateSpreadsheetRow(row.id, 'name', e.target.value)} className="w-full bg-transparent border-none text-sm font-black text-zinc-800 placeholder:text-zinc-300 outline-none focus:ring-0" placeholder="Nome da peça..." /></td>
-                              <td className="px-6 py-4 border-y border-zinc-100"><input type="number" step="0.01" value={row.price || ''} onChange={(e) => updateSpreadsheetRow(row.id, 'price', parseFloat(e.target.value) || 0)} className="w-full bg-transparent border-none text-sm font-black text-emerald-600 outline-none focus:ring-0" /></td>
-                              <td className="px-6 py-4 border-y border-zinc-100"><input type="number" value={row.quantity || ''} onChange={(e) => updateSpreadsheetRow(row.id, 'quantity', parseInt(e.target.value) || 0)} className="w-full bg-transparent border-none text-sm font-black text-zinc-900 outline-none focus:ring-0" /></td>
-                              <td className="px-6 py-4 rounded-r-[24px] border-y border-r border-zinc-100 text-right"><span className="text-sm font-black text-zinc-900">{formatCurrency(row.price * row.quantity)}</span></td>
-                           </tr>
-                         ))}
-                      </tbody>
-                   </table>
-                 </div>
-                 <div className="mt-10 p-8 bg-zinc-900 rounded-[40px] flex flex-col md:flex-row justify-between items-center gap-8 shadow-2xl">
-                    <div className="text-center md:text-left">
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1 italic">Total Geral Importação</p>
-                      <p className="text-4xl font-black text-white tracking-tighter">{formatCurrency(spreadsheetTotal)}</p>
-                    </div>
-                    <button onClick={handleSaveToCatalog} className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-zinc-900 px-12 py-6 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">Sincronizar Catálogo</button>
-                 </div>
+            <section className="bg-white p-8 md:p-12 rounded-[48px] border border-zinc-100 shadow-sm relative overflow-hidden">
+               <div className="flex flex-col md:flex-row gap-10 items-center">
+                  <div className="flex-1 space-y-6">
+                     <div>
+                        <h2 className="text-4xl font-black text-zinc-900 italic uppercase tracking-tighter leading-none">Setup sem dor de cabeça.</h2>
+                        <p className="text-zinc-500 mt-4 font-medium">Use nossa inteligência artificial para digitalizar seu estoque de uma vez ou cole sua lista de pedidos aqui.</p>
+                     </div>
+                     <div className="flex flex-wrap gap-4">
+                        <button onClick={() => setIsOCRModalOpen(true)} className="bg-zinc-900 text-white px-8 py-5 rounded-[24px] font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all flex items-center gap-3">
+                           <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                           Tirar Foto do Catálogo
+                        </button>
+                        <button onClick={() => setIsPasteModalOpen(true)} className="bg-zinc-100 text-zinc-600 px-8 py-5 rounded-[24px] font-black uppercase text-xs tracking-widest hover:bg-zinc-200 transition-all">
+                           Colar Lista em Texto
+                        </button>
+                     </div>
+                  </div>
+                  <div className="hidden lg:block w-64 h-64 bg-zinc-50 rounded-[48px] border-4 border-dashed border-zinc-100 flex items-center justify-center">
+                     <svg className="h-24 w-24 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  </div>
                </div>
             </section>
           </div>
         )}
 
-        {activeTab === 'financeiro' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-700 ease-out">
-             <div className="px-2">
-                <h2 className="text-5xl font-black text-zinc-900 italic uppercase leading-none tracking-tighter">Financeiro</h2>
-                <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-3 italic leading-none">Fintech Executive Dashboard</p>
+        {activeTab === 'maletas' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-4 gap-6">
+                <div>
+                   <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter">Equipe & Maletas</h2>
+                   <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Gestão de Vendedoras</p>
+                </div>
+                <div className="flex gap-4 w-full md:w-auto">
+                   <input 
+                     type="text" 
+                     value={repSearch} 
+                     onChange={e => setRepSearch(e.target.value)} 
+                     placeholder="Buscar vendedora..." 
+                     className="flex-1 md:w-64 p-3 bg-white border-2 border-zinc-100 rounded-2xl text-xs font-black outline-none focus:border-zinc-900 transition-all shadow-sm"
+                   />
+                   <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="bg-zinc-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-xl">Nova Vendedora</button>
+                </div>
              </div>
-             {/* ... financeiro cards ... */}
+
+             <div className="grid grid-cols-1 gap-6">
+                {filteredSummaries.map(s => {
+                  const rep = reps.find(r => r.id === s.repId);
+                  return (
+                    <div key={s.repId} className="bg-white p-8 rounded-[48px] border border-zinc-100 shadow-sm flex flex-col lg:flex-row gap-8 hover:shadow-xl transition-all group relative">
+                       {/* Botão de Reposição Rápida */}
+                       <button 
+                         onClick={() => handleQuickRefill(s.repId)}
+                         className="absolute -top-3 -right-3 w-14 h-14 bg-emerald-500 text-white rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform active:scale-90 z-10"
+                         title="Reposição Rápida"
+                       >
+                         <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                       </button>
+
+                       <div className="lg:w-1/3 space-y-4">
+                          <div className="flex justify-between items-start">
+                             <h3 className="text-2xl font-black text-zinc-900 uppercase italic leading-none">{s.repName}</h3>
+                             <button onClick={() => { setEditingRep(rep || null); setIsRepOpen(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-900 hover:text-white transition-all"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                          </div>
+                          <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                             <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest italic mb-1">Status</p>
+                             <p className="text-xs font-black text-zinc-900">{s.status}</p>
+                          </div>
+                          <button onClick={() => { setSelectedRepId(s.repId); setIsMountOpen(true); }} className="w-full bg-emerald-500 text-zinc-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all">Montagem em Lote</button>
+                       </div>
+
+                       <div className="flex-1 grid grid-cols-2 gap-4">
+                          <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-100">
+                             <p className="text-[10px] font-black text-zinc-400 uppercase italic mb-2">Vendido</p>
+                             <p className="text-2xl font-black text-zinc-900 tracking-tighter">{formatCurrency(s.soldValue)}</p>
+                          </div>
+                          <div className={`p-6 rounded-3xl border border-zinc-100 ${s.commissionRate >= 50 ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                             <p className={`text-[10px] font-black uppercase italic mb-2 ${s.commissionRate >= 50 ? 'text-emerald-600' : 'text-amber-600'}`}>Comissão ({s.commissionRate}%)</p>
+                             <p className={`text-2xl font-black tracking-tighter ${s.commissionRate >= 50 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatCurrency(s.commissionValue)}</p>
+                          </div>
+                          <div className="col-span-full bg-zinc-900 p-8 rounded-[32px] shadow-xl border-b-4 border-emerald-500">
+                             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1 italic">Líquido Dona</p>
+                             <h4 className="text-4xl font-black text-emerald-400 tracking-tighter">{formatCurrency(s.ownerValue)}</h4>
+                          </div>
+                       </div>
+                    </div>
+                  )
+                })}
+             </div>
           </div>
         )}
 
-        {/* ... outras tabs mantidas ... */}
-        
         {activeTab === 'produtos' && (
           <div className="space-y-8 animate-in fade-in duration-500">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-4">
                 <div>
-                  <h2 className="text-4xl font-black text-zinc-900 italic uppercase leading-none tracking-tighter">Estoque Base</h2>
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-2 italic leading-none tracking-[0.2em]">Silo Central de Mercadorias</p>
-                </div>
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                  <div className="relative">
-                     <input type="text" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Buscar no estoque..." className="w-full md:w-64 p-4 pl-12 bg-white border-2 border-zinc-100 rounded-[24px] text-sm font-black focus:border-emerald-500 outline-none transition-all shadow-sm" />
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setIsOCROpen(true)} className="flex-1 md:flex-none bg-emerald-50 text-emerald-600 px-6 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-100 transition-all flex items-center justify-center gap-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
-                      Digitalizar
-                    </button>
-                    <button onClick={() => { setEditingProduct(null); setIsProdOpen(true); }} className="flex-1 md:flex-none bg-zinc-900 text-white px-10 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">Novo Item</button>
+                  <h2 className="text-3xl font-black text-zinc-900 italic uppercase leading-none tracking-tighter">Estoque Central</h2>
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={handleMassStockUpdate} className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100">Definir Qtd</button>
+                    <button onClick={() => { if(confirm('Zerar TODOS os itens?')) setProducts(prev => prev.map(p => ({ ...p, stock: 0 }))); }} className="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100">Zerar Tudo</button>
                   </div>
                 </div>
-             </div>
-             {filteredCatalogProducts.length === 0 ? (
-               <div className="py-20 text-center bg-white rounded-[48px] border-2 border-dashed border-zinc-100">
-                  <p className="text-zinc-300 font-black uppercase tracking-[0.2em] italic">Nenhum item encontrado</p>
-               </div>
-             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredCatalogProducts.map(p => (
-                    <div key={p.id} onClick={() => openEditProduct(p)} className="bg-white p-10 rounded-[48px] border-2 border-zinc-100 shadow-sm flex flex-col justify-between h-56 group hover:border-emerald-400 transition-all cursor-pointer relative overflow-hidden">
-                      <div className="absolute top-4 right-6 opacity-0 group-hover:opacity-100 transition-all">
-                         <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-full">Clique para Editar</span>
+                <div className="flex gap-3 w-full md:w-auto">
+                   <div className="relative flex-1 md:w-64">
+                     <input 
+                       type="text" 
+                       value={productSearch} 
+                       onChange={e => setProductSearch(e.target.value)} 
+                       placeholder="Buscar no catálogo..." 
+                       className="w-full p-3 pl-10 bg-white border-2 border-zinc-100 rounded-2xl text-xs font-black outline-none focus:border-zinc-900 transition-all shadow-sm"
+                     />
+                     <svg className="h-4 w-4 absolute left-3.5 top-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                   </div>
+                   <button onClick={() => { setEditingProd(null); setIsProdOpen(true); }} className="bg-zinc-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl whitespace-nowrap">Novo Item</button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(p => (
+                  <div key={p.id} className={`bg-white p-8 rounded-[40px] border-2 transition-all group relative overflow-hidden ${p.stock <= 5 ? 'border-rose-100 bg-rose-50/20' : 'border-zinc-100 hover:border-zinc-900'}`}>
+                    <div className="mb-4">
+                      <div className="flex justify-between items-start">
+                        <span className="text-[8px] font-black bg-zinc-100 text-zinc-500 px-2 py-1 rounded-full uppercase italic tracking-widest">{p.category}</span>
+                        {p.stock <= 5 && <span className="text-[7px] font-black text-rose-600 uppercase animate-pulse">Estoque Baixo!</span>}
                       </div>
-                      <div>
-                         <span className="text-[9px] font-black bg-zinc-100 text-zinc-500 px-4 py-1.5 rounded-full uppercase italic leading-none tracking-widest">{p.category}</span>
-                         <h4 className="text-2xl font-black text-zinc-900 leading-tight uppercase italic mt-4 tracking-tighter group-hover:text-emerald-600 transition-colors">{p.name}</h4>
-                         <p className="text-[10px] text-zinc-300 font-bold mt-1 uppercase tracking-widest">{p.code || 'Sem Código'}</p>
-                      </div>
-                      <div className="flex justify-between items-end border-t border-zinc-50 pt-6 mt-4">
-                         <p className="text-3xl font-black text-zinc-900 tracking-tighter group-hover:scale-105 transition-transform">{formatCurrency(p.price)}</p>
-                         <span className={`text-[10px] font-black px-4 py-2 rounded-xl uppercase tracking-widest ${p.stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{p.stock} un.</span>
+                      <h4 className="text-lg font-black text-zinc-900 uppercase italic mt-2 tracking-tighter leading-tight">{p.name}</h4>
+                      <p className="text-[10px] text-zinc-400 font-bold mt-1 uppercase tracking-widest">{p.code || 'S/C'}</p>
+                    </div>
+                    
+                    <div className="flex justify-between items-end pb-6 border-b border-zinc-50">
+                      <p className="text-xl font-black text-zinc-900">{formatCurrency(p.price)}</p>
+                      <div className="text-right">
+                        <p className="text-[8px] text-zinc-400 font-black uppercase mb-1">Qtd Atual</p>
+                        <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl uppercase ${p.stock <= 5 ? 'bg-rose-100 text-rose-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                          {p.stock} un.
+                        </span>
                       </div>
                     </div>
-                  ))}
-               </div>
-             )}
+                    
+                    <div className="flex gap-2 mt-6">
+                       <button 
+                         onClick={() => { setEditingProd(p); setIsProdOpen(true); }}
+                         className="flex-1 bg-zinc-900 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95 shadow-lg shadow-zinc-200"
+                       >
+                         Editar
+                       </button>
+                       <button 
+                         onClick={() => handleDeleteProduct(p.id)}
+                         className="px-4 bg-rose-50 text-rose-500 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all active:scale-95 border border-rose-100"
+                       >
+                         Excluir
+                       </button>
+                    </div>
+                  </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {activeTab === 'movimentacoes' && (
+           <div className="space-y-6 animate-in fade-in duration-500">
+              <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter">Histórico Total</h2>
+              <div className="bg-white rounded-[40px] border border-zinc-100 shadow-sm overflow-hidden">
+                 <table className="w-full text-left">
+                    <thead className="bg-zinc-50">
+                       <tr className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                          <th className="p-6">Data</th>
+                          <th className="p-6">Tipo</th>
+                          <th className="p-6">Vendedora</th>
+                          <th className="p-6">Valor</th>
+                          <th className="p-6 text-right">Ação</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-50">
+                       {movements.map(m => (
+                         <tr key={m.id} className="hover:bg-zinc-50 transition-all">
+                            <td className="p-6 font-black text-zinc-900 text-xs">{formatDate(m.date)}</td>
+                            <td className="p-6 italic font-bold text-xs"><span className="px-2 py-1 bg-zinc-100 rounded-full text-[9px] uppercase">{m.type}</span></td>
+                            <td className="p-6 text-xs font-bold text-zinc-500">{reps.find(r => r.id === m.representativeId)?.name || '-'}</td>
+                            <td className="p-6 font-black text-emerald-600">{formatCurrency(m.value * m.quantity)}</td>
+                            <td className="p-6 text-right">
+                                <button onClick={() => { setEditingMov(m); setIsMovOpen(true); }} className="p-2 bg-zinc-100 rounded-lg hover:bg-zinc-900 hover:text-white transition-all"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                            </td>
+                         </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
         )}
       </main>
 
-      {/* Navegação e Modais ... */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-100 px-10 py-5 flex justify-between items-center z-50 rounded-t-[48px] shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
-        <NavBtn active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} label="Início" />
-        <NavBtn active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="Financeiro" />
-        <NavBtn active={activeTab === 'maletas'} onClick={() => setActiveTab('maletas')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} label="Equipe" />
-        <div className="relative -top-12 scale-125">
-           <button onClick={() => { setDefaultRepId(undefined); setDefaultMovType('Vendido'); setIsMovOpen(true); }} className="bg-emerald-600 text-white p-5 rounded-[24px] shadow-2xl shadow-emerald-200 active:scale-90 transition-all hover:bg-emerald-700">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
-           </button>
-        </div>
-        <NavBtn active={activeTab === 'produtos'} onClick={() => setActiveTab('produtos')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} label="Estoque" />
-        <NavBtn active={activeTab === 'movimentacoes'} onClick={() => setActiveTab('movimentacoes')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="Log" />
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-zinc-100 px-8 py-6 flex justify-between items-center z-50 rounded-t-[40px] shadow-lg">
+        <NavBtn active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} label="Início" />
+        <NavBtn active={activeTab === 'maletas'} onClick={() => setActiveTab('maletas')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} label="Maletas" />
+        <NavBtn active={activeTab === 'produtos'} onClick={() => setActiveTab('produtos')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} label="Catálogo" />
+        <NavBtn active={activeTab === 'movimentacoes'} onClick={() => setActiveTab('movimentacoes')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} label="Histórico" />
       </nav>
 
-      <MovementModal isOpen={isMovOpen} onClose={() => setIsMovOpen(false)} initialType={defaultMovType} initialRepId={defaultRepId} onSave={m => { setMovements(prev => [m, ...prev]); setProducts(prev => prev.map(p => { if (p.id === m.productId) { let newStock = p.stock; if (m.type === 'Entregue' || m.type === 'Reposição') newStock -= m.quantity; else if (m.type === 'Devolvido') newStock += m.quantity; return { ...p, stock: newStock }; } return p; })); }} reps={reps} products={products} />
-      <RepresentativeModal isOpen={isRepOpen} onClose={() => setIsRepOpen(false)} onSave={r => setReps(prev => { const e = prev.find(p => p.id === r.id); return e ? prev.map(p => p.id === r.id ? r : p) : [...prev, r]; })} editingRep={editingRep} />
-      <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProduct(null); }} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [...prev, p]; })} editingProduct={editingProduct} onDelete={handleDeleteProduct} />
-      <OCRModal isOpen={isOCROpen} onClose={() => setIsOCROpen(false)} onImport={prods => setProducts(prev => [...prods, ...prev])} />
-      <AdjustmentModal isOpen={isAdjOpen} onClose={() => setIsAdjOpen(false)} target={adjTarget} repId={defaultRepId || ''} onSave={adj => setMovements(prev => [adj, ...prev])} />
+      <MovementModal isOpen={isMovOpen} onClose={() => { setIsMovOpen(false); setEditingMov(null); setMovType('Vendido'); }} editingMovement={editingMov} reps={reps} products={products} initialType={movType} initialRepId={selectedRepId} onSave={m => { setMovements(prev => [m, ...prev]); setEditingMov(null); }} />
+      <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} onDelete={handleDeleteProduct} />
+      <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />
+      <AdjustmentModal isOpen={isAdjOpen} onClose={() => setIsAdjOpen(false)} target={adjTarget} repId={selectedRepId || ''} onSave={m => setMovements(prev => [m, ...prev])} />
+      <MaletaMountModal isOpen={isMountOpen} onClose={() => setIsMountOpen(false)} reps={reps} products={products} initialRepId={selectedRepId} onSave={handleMountSave} />
+      <OCRModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} onImport={p => setProducts(prev => [...p, ...prev])} />
+      
+      {isPasteModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl">
+          <div className="bg-white/95 w-full max-w-2xl rounded-[48px] shadow-2xl overflow-hidden">
+            <div className="p-10 border-b border-zinc-100 flex justify-between items-center">
+              <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter">Importar Lista</h2>
+              <button onClick={() => setIsPasteModalOpen(false)} className="p-3 text-zinc-400 hover:text-rose-500 transition-colors"><svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div className="p-10">
+              <textarea autoFocus value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="Cole aqui sua lista. Formatos aceitos:&#10;Brinco Ouro 45.00&#10;Colar Veneziana 120,00" className="w-full h-64 p-8 bg-zinc-50 border-2 border-zinc-100 rounded-[32px] font-mono text-sm outline-none focus:border-emerald-500 transition-all resize-none shadow-inner" />
+              <button onClick={handleBatchImport} className="w-full py-6 mt-8 rounded-[24px] bg-emerald-500 text-zinc-900 font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">Processar e Salvar Itens</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const NavBtn: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-emerald-600 scale-110' : 'text-zinc-400 opacity-60 hover:opacity-100'}`}>
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-zinc-900 scale-110 font-bold' : 'text-zinc-400 opacity-60 hover:opacity-100'}`}>
     {icon}
-    <span className="text-[10px] font-black uppercase tracking-widest leading-none mt-1 italic">{label}</span>
+    <span className="text-[10px] font-black uppercase tracking-widest leading-none mt-2 italic">{label}</span>
   </button>
 );
 

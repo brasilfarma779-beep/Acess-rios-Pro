@@ -71,8 +71,9 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
         preco: p.price
       }));
 
+      // Updated model to gemini-3-flash-preview
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-lite-latest",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             parts: [
@@ -97,7 +98,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              matchId: { type: Type.STRING, nullable: true },
+              matchId: { type: Type.STRING },
               suggestionsIds: { 
                 type: Type.ARRAY,
                 items: { type: Type.STRING }

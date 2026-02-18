@@ -1,6 +1,6 @@
 {
-  "name": "Hub",
-  "description": "Um sistema simples e elegante para controle de vendas e cálculo automático de comissões, projetado para facilidade de uso em dispositivos móveis e desktop.",
+  "name": "HUB - Soberana Gestão",
+  "description": "Sistema de gestão inteligente para semijoias consignadas com foco em financeiro fintech e automação de equipe.",
   "requestFramePermissions": [
     "camera"
   ]

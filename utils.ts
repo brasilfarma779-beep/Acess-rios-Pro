@@ -1,5 +1,5 @@
 
-import { Movement, Representative, Product, MaletaSummary, MovementType, Sale, SaleStatus, Category } from './types';
+import { Movement, Representative, Product, MaletaSummary, Category, Sale, SaleStatus } from './types.ts';
 
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
@@ -20,24 +20,15 @@ export const formatDate = (dateString: string): string => {
 
 export const generateId = () => Math.random().toString(36).substring(2, 11);
 
-export const calculateCommission = (totalSoldValue: number): number => {
+export const calculateCommissionRate = (totalSoldValue: number): number => {
   return totalSoldValue >= 5000 ? 0.50 : 0.30;
-};
-
-export const isMonday = (dateString: string): boolean => {
-  return new Date(dateString).getDay() === 1;
-};
-
-export const getDayName = (dayIndex: number): string => {
-  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  return days[dayIndex];
 };
 
 export const calculateMaletaSummaries = (movements: Movement[], reps: Representative[]): MaletaSummary[] => {
   return reps.map(rep => {
     const repMovements = movements.filter(m => m.representativeId === rep.id);
     
-    let totalDelivered = 0;
+    let totalDeliveredValue = 0;
     let soldValue = 0;
     let commissionValueAdjustment = 0;
     let additionalValue = 0;
@@ -47,26 +38,19 @@ export const calculateMaletaSummaries = (movements: Movement[], reps: Representa
     let qtyReturned = 0;
 
     repMovements.forEach(m => {
-      const val = m.value * m.quantity;
+      const lineValue = m.value * m.quantity;
       
       if (m.type === 'Ajuste') {
-        if (m.adjustmentTarget === 'sold') soldValue += val;
-        if (m.adjustmentTarget === 'commission') commissionValueAdjustment += val;
-        if (m.adjustmentTarget === 'total') totalDelivered += val;
-        if (m.adjustmentTarget === 'additional') {
-          totalDelivered += val;
-          additionalValue += val;
-        }
+        if (m.adjustmentTarget === 'sold') soldValue += lineValue;
+        if (m.adjustmentTarget === 'commission') commissionValueAdjustment += lineValue;
+        if (m.adjustmentTarget === 'total') totalDeliveredValue += lineValue;
+        if (m.adjustmentTarget === 'additional') additionalValue += lineValue;
       } else {
-        if (m.type === 'Entregue') {
-          totalDelivered += val;
-          qtyDelivered += m.quantity;
-        } else if (m.type === 'Reposição') {
-          totalDelivered += val;
-          additionalValue += val;
+        if (m.type === 'Entregue' || m.type === 'Reposição') {
+          totalDeliveredValue += lineValue;
           qtyDelivered += m.quantity;
         } else if (m.type === 'Vendido') {
-          soldValue += val;
+          soldValue += lineValue;
           qtySold += m.quantity;
         } else if (m.type === 'Devolvido') {
           qtyReturned += m.quantity;
@@ -75,25 +59,89 @@ export const calculateMaletaSummaries = (movements: Movement[], reps: Representa
     });
 
     const currentStockQty = qtyDelivered - qtySold - qtyReturned;
-    const rate = calculateCommission(soldValue);
-    const baseCommission = soldValue * rate;
-    const finalCommissionValue = baseCommission + commissionValueAdjustment;
-    const ownerValue = soldValue - finalCommissionValue;
+    const rate = calculateCommissionRate(soldValue);
+    const finalCommission = (soldValue * rate) + commissionValueAdjustment;
+    const ownerValue = soldValue - finalCommission;
 
     return {
       repId: rep.id,
       repName: rep.name,
-      totalDelivered,
-      totalSold: soldValue,
+      totalDelivered: totalDeliveredValue,
+      totalSold: qtySold,
       totalReturned: qtyReturned,
       currentStockQty,
       soldValue,
       commissionRate: rate * 100,
-      commissionValue: finalCommissionValue,
+      commissionValue: finalCommission,
       ownerValue,
       additionalValue,
       isClosed: !rep.active,
-      status: rep.status || (rep.active ? 'Em Campo' : 'Na Base')
+      status: rep.status || 'Em Campo'
+    };
+  });
+};
+
+export const parsePastedProducts = (text: string): Product[] => {
+  const lines = text.split('\n').filter(line => line.trim() !== '');
+  return lines.map(line => {
+    const moneyRegex = /(?:R\$?\s*)?(\d+(?:\.\d+)?(?:,\d+)?)\b/g;
+    const matches = Array.from(line.matchAll(moneyRegex));
+    
+    let name = line.trim();
+    let price = 0;
+    let quantity = 10;
+
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const priceStr = lastMatch[1].replace(/\./g, '').replace(',', '.');
+      price = parseFloat(priceStr) || 0;
+      name = line.replace(lastMatch[0], '').trim();
+    }
+
+    const parts = line.split(/[\t;|\-]/);
+    if (parts.length >= 2) {
+      name = parts[0].trim();
+      const pStr = parts[1].trim().replace('R$', '').replace(/\./g, '').replace(',', '.');
+      price = parseFloat(pStr) || price;
+      if (parts[2]) quantity = parseInt(parts[2].trim()) || quantity;
+    }
+
+    return {
+      id: generateId(),
+      name: name || 'Produto Sem Nome',
+      category: Category.BRINCOS,
+      code: `SKU-${generateId().toUpperCase().substring(0,3)}`,
+      price,
+      stock: quantity
+    };
+  });
+};
+
+// Fixed missing parsePastedData for ImportModal.tsx
+export const parsePastedData = (text: string, repId: string): Sale[] => {
+  const lines = text.split('\n').filter(line => line.trim() !== '');
+  return lines.map(line => {
+    const parts = line.split(/[\t;|,]/);
+    const client = parts[0]?.trim() || 'Cliente';
+    const categoryStr = parts[1]?.trim() || '';
+    const valueStr = parts[2]?.trim().replace('R$', '').replace(/\./g, '').replace(',', '.') || '0';
+    
+    let category = Category.BRINCOS;
+    // Tenta encontrar uma categoria válida
+    const validCategory = Object.values(Category).find(c => c === categoryStr);
+    if (validCategory) {
+      category = validCategory as Category;
+    }
+
+    return {
+      id: generateId(),
+      date: new Date().toISOString(),
+      representativeId: repId,
+      productId: 'manual-import',
+      client,
+      category,
+      value: parseFloat(valueStr) || 0,
+      status: 'Vendida' as SaleStatus
     };
   });
 };
@@ -102,83 +150,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64 = reader.result?.toString().split(',')[1];
-      if (base64) resolve(base64);
-      else reject('Erro ao converter arquivo');
-    };
-    reader.onerror = error => reject(error);
-  });
-};
-
-export const parsePastedData = (text: string, repId: string): Sale[] => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  return lines.map(line => {
-    const parts = line.split(/[\t;]/);
-    const possibleName = parts[0]?.trim() || 'Importado';
-    const possibleValueStr = parts[parts.length - 1]?.trim()
-      .replace('R$', '')
-      .replace(/\./g, '')
-      .replace(',', '.') || '0';
-    const possibleValue = parseFloat(possibleValueStr) || 0;
-
-    return {
-      id: generateId(),
-      date: new Date().toISOString(),
-      representativeId: repId,
-      productId: '',
-      client: possibleName,
-      category: Category.BRINCOS,
-      value: possibleValue,
-      status: 'Vendida' as SaleStatus
-    };
-  });
-};
-
-export const parsePastedProducts = (text: string) => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  return lines.map(line => {
-    // Tenta quebrar por TAB, Ponto e Vírgula ou Espaços Múltiplos
-    const parts = line.split(/[\t;]/);
-    
-    if (parts.length >= 2) {
-      const name = parts[0]?.trim() || 'Novo Produto';
-      const category = parts.length > 3 ? parts[1]?.trim() : '';
-      const priceStr = (parts.length > 3 ? parts[2] : parts[1])?.trim()
-        .replace('R$', '')
-        .replace(/\./g, '')
-        .replace(',', '.') || '0';
-      const qtyStr = (parts.length > 3 ? parts[3] : parts[2])?.trim() || '1';
-
-      return {
-        id: generateId(),
-        name,
-        category,
-        price: parseFloat(priceStr) || 0,
-        quantity: parseInt(qtyStr) || 1
-      };
-    } else {
-      // Tenta um rastro simples por espaço se for apenas "Produto Preço"
-      const lastSpaceIndex = line.lastIndexOf(' ');
-      if (lastSpaceIndex !== -1) {
-        const name = line.substring(0, lastSpaceIndex).trim();
-        const priceStr = line.substring(lastSpaceIndex).trim().replace(',', '.');
-        return {
-          id: generateId(),
-          name,
-          category: '',
-          price: parseFloat(priceStr) || 0,
-          quantity: 1
-        };
-      }
-    }
-
-    return {
-      id: generateId(),
-      name: line.trim() || 'Novo Produto',
-      category: '',
-      price: 0,
-      quantity: 1
-    };
+    reader.onload = () => resolve(reader.result?.toString().split(',')[1] || '');
+    reader.onerror = reject;
   });
 };

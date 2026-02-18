@@ -35,18 +35,6 @@ export interface Product {
   stock: number;
 }
 
-export interface Movement {
-  id: string;
-  date: string;
-  representativeId: string;
-  productId: string;
-  type: MovementType;
-  quantity: number;
-  value: number; 
-  image?: string;
-  adjustmentTarget?: AdjustmentTarget;
-}
-
 export interface Sale {
   id: string;
   date: string;
@@ -57,6 +45,18 @@ export interface Sale {
   value: number;
   status: SaleStatus;
   image?: string;
+}
+
+export interface Movement {
+  id: string;
+  date: string;
+  representativeId: string;
+  productId: string;
+  type: MovementType;
+  quantity: number;
+  value: number; 
+  image?: string;
+  adjustmentTarget?: AdjustmentTarget;
 }
 
 export interface MaletaSummary {
