@@ -224,10 +224,7 @@ const App: React.FC = () => {
   const handleProcessPaste = () => {
     if (!pasteText.trim()) return;
     const newRows = parsePastedProducts(pasteText);
-    
-    // Filtra linhas vazias iniciais da planilha se houver apenas uma sem dados
     const currentValidRows = spreadsheetRows.filter(r => r.name !== '' || r.price !== 0);
-    
     setSpreadsheetRows([...currentValidRows, ...newRows]);
     setPasteText('');
     setIsPasteModalOpen(false);
@@ -285,8 +282,8 @@ const App: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276l-4 2a1 1 0 000 1.788l4 2A1 1 0 0016.658 11.236l4-2a1 1 0 000-1.788l-4-2a1 1 0 00-1.447 0zM7 10a1 1 0 011-1h1a1 1 0 110 2H8a1 1 0 01-1-1z" /></svg>
             </div>
             <div>
-              <h1 className="text-lg font-black text-zinc-900 uppercase tracking-tighter italic leading-none">MALETAS PRO</h1>
-              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic leading-none">Intelligence Hub</p>
+              <h1 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">HUB</h1>
+              <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1 italic leading-none">Vendas & Inteligência</p>
             </div>
           </div>
         </div>
@@ -452,7 +449,6 @@ const App: React.FC = () => {
                </div>
                <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-[24px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-200 active:scale-95 transition-all">Nova Vendedora</button>
             </div>
-            
             <div className="grid grid-cols-1 gap-6">
               {maletaSummaries.filter(s => {
                 const r = reps.find(rep => rep.id === s.repId);
@@ -570,13 +566,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
                   <div className="relative">
-                     <input 
-                        type="text" 
-                        value={productSearch}
-                        onChange={e => setProductSearch(e.target.value)}
-                        placeholder="Buscar no estoque..."
-                        className="w-full md:w-64 p-4 pl-12 bg-white border-2 border-zinc-100 rounded-[24px] text-sm font-black focus:border-emerald-500 outline-none transition-all shadow-sm"
-                     />
+                     <input type="text" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Buscar no estoque..." className="w-full md:w-64 p-4 pl-12 bg-white border-2 border-zinc-100 rounded-[24px] text-sm font-black focus:border-emerald-500 outline-none transition-all shadow-sm" />
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                   </div>
                   <div className="flex gap-2">
@@ -588,7 +578,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
              </div>
-             
              {filteredCatalogProducts.length === 0 ? (
                <div className="py-20 text-center bg-white rounded-[48px] border-2 border-dashed border-zinc-100">
                   <p className="text-zinc-300 font-black uppercase tracking-[0.2em] italic">Nenhum item encontrado</p>
@@ -596,11 +585,7 @@ const App: React.FC = () => {
              ) : (
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredCatalogProducts.map(p => (
-                    <div 
-                      key={p.id} 
-                      onClick={() => openEditProduct(p)}
-                      className="bg-white p-10 rounded-[48px] border-2 border-zinc-100 shadow-sm flex flex-col justify-between h-56 group hover:border-emerald-400 transition-all cursor-pointer relative overflow-hidden"
-                    >
+                    <div key={p.id} onClick={() => openEditProduct(p)} className="bg-white p-10 rounded-[48px] border-2 border-zinc-100 shadow-sm flex flex-col justify-between h-56 group hover:border-emerald-400 transition-all cursor-pointer relative overflow-hidden">
                       <div className="absolute top-4 right-6 opacity-0 group-hover:opacity-100 transition-all">
                          <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-full">Clique para Editar</span>
                       </div>
@@ -621,7 +606,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* MODAL DE IMPORTAÇÃO EM MASSA (COPIA E COLA) */}
       {isPasteModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-white/90 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col border border-white/20">
@@ -636,12 +620,7 @@ const App: React.FC = () => {
             </div>
             <div className="p-8">
               <p className="text-[11px] text-zinc-500 font-medium mb-4 italic">Cole abaixo suas linhas. O sistema identificará automaticamente Nome, Preço e Quantidade.</p>
-              <textarea 
-                value={pasteText}
-                onChange={e => setPasteText(e.target.value)}
-                placeholder="Exemplo:&#10;Brinco Pérola R$ 45,00 10&#10;Colar Ouro;60,00;5"
-                className="w-full h-64 p-6 bg-zinc-50 border-2 border-zinc-100 rounded-[32px] font-mono text-sm focus:border-emerald-500 outline-none transition-all shadow-inner resize-none"
-              />
+              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="Exemplo:&#10;Brinco Pérola R$ 45,00 10&#10;Colar Ouro;60,00;5" className="w-full h-64 p-6 bg-zinc-50 border-2 border-zinc-100 rounded-[32px] font-mono text-sm focus:border-emerald-500 outline-none transition-all shadow-inner resize-none" />
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <button onClick={() => setIsPasteModalOpen(false)} className="py-5 rounded-[24px] bg-zinc-100 text-zinc-500 font-black text-[10px] uppercase tracking-widest">Cancelar</button>
                 <button onClick={handleProcessPaste} disabled={!pasteText.trim()} className="py-5 rounded-[24px] bg-zinc-900 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl disabled:opacity-30 active:scale-95 transition-all">Importar Linhas</button>
