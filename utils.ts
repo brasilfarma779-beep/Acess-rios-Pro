@@ -98,14 +98,6 @@ export const parsePastedProducts = (text: string): Product[] => {
       name = line.replace(lastMatch[0], '').trim();
     }
 
-    const parts = line.split(/[\t;|\-]/);
-    if (parts.length >= 2) {
-      name = parts[0].trim();
-      const pStr = parts[1].trim().replace('R$', '').replace(/\./g, '').replace(',', '.');
-      price = parseFloat(pStr) || price;
-      if (parts[2]) quantity = parseInt(parts[2].trim()) || quantity;
-    }
-
     return {
       id: generateId(),
       name: name || 'Produto Sem Nome',
@@ -117,33 +109,49 @@ export const parsePastedProducts = (text: string): Product[] => {
   });
 };
 
-// Fixed missing parsePastedData for ImportModal.tsx
-export const parsePastedData = (text: string, repId: string): Sale[] => {
+// Added missing parsePastedData function to handle sales text import for ImportModal component.
+export const parsePastedData = (text: string, representativeId: string): Sale[] => {
   const lines = text.split('\n').filter(line => line.trim() !== '');
   return lines.map(line => {
-    const parts = line.split(/[\t;|,]/);
-    const client = parts[0]?.trim() || 'Cliente';
-    const categoryStr = parts[1]?.trim() || '';
-    const valueStr = parts[2]?.trim().replace('R$', '').replace(/\./g, '').replace(',', '.') || '0';
+    const moneyRegex = /(?:R\$?\s*)?(\d+(?:\.\d+)?(?:,\d+)?)\b/g;
+    const matches = Array.from(line.matchAll(moneyRegex));
     
-    let category = Category.BRINCOS;
-    // Tenta encontrar uma categoria válida
-    const validCategory = Object.values(Category).find(c => c === categoryStr);
-    if (validCategory) {
-      category = validCategory as Category;
+    let client = line.trim();
+    let value = 0;
+
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      const priceStr = lastMatch[1].replace(/\./g, '').replace(',', '.');
+      value = parseFloat(priceStr) || 0;
+      client = line.replace(lastMatch[0], '').trim();
     }
 
     return {
       id: generateId(),
       date: new Date().toISOString(),
-      representativeId: repId,
-      productId: 'manual-import',
-      client,
-      category,
-      value: parseFloat(valueStr) || 0,
-      status: 'Vendida' as SaleStatus
+      representativeId,
+      productId: '', 
+      client: client || 'Cliente Avulso',
+      category: Category.BRINCOS,
+      value,
+      status: 'Vendida'
     };
   });
+};
+
+export const exportFullData = () => {
+  const data = {
+    reps: JSON.parse(localStorage.getItem('hub_v5_reps') || '[]'),
+    prods: JSON.parse(localStorage.getItem('hub_v5_prods') || '[]'),
+    movs: JSON.parse(localStorage.getItem('hub_v5_movs') || '[]'),
+    exportDate: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_soberana_gestao_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+  a.click();
 };
 
 export const fileToBase64 = (file: File): Promise<string> => {
