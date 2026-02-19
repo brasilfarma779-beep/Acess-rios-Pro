@@ -11,6 +11,11 @@ import MaletaMountModal from './components/MaletaMountModal.tsx';
 import OCRModal from './components/OCRModal.tsx';
 import FinancialDashboard from './components/FinancialDashboard.tsx';
 import MovementsList from './components/MovementsList.tsx';
+import AdjustmentModal from './components/AdjustmentModal.tsx';
+import SaleModal from './components/SaleModal.tsx';
+import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
+import ImportModal from './components/ImportModal.tsx';
+import { AdjustmentTarget, Sale } from './types.ts';
 
 type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes';
 
@@ -46,6 +51,12 @@ const App: React.FC = () => {
   const [isMountOpen, setIsMountOpen] = useState(false);
   const [isRepOpen, setIsRepOpen] = useState(false);
   const [isProdOpen, setIsProdOpen] = useState(false);
+  const [isAdjOpen, setIsAdjOpen] = useState(false);
+  const [isSaleOpen, setIsSaleOpen] = useState(false);
+  const [isBulkOCROpen, setIsBulkOCROpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [adjTarget, setAdjTarget] = useState<AdjustmentTarget>('sold');
+  const [targetRepId, setTargetRepId] = useState('');
   
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
   const [editingProd, setEditingProd] = useState<Product | null>(null);
@@ -166,9 +177,14 @@ const App: React.FC = () => {
             {/* AÇÕES DE GESTÃO RÁPIDA */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
                <DashboardActionBtn 
+                  onClick={() => setIsSaleOpen(true)} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+                  label="VENDA RÁPIDA" 
+               />
+               <DashboardActionBtn 
                   onClick={() => { setMovType('Vendido'); setIsMovOpen(true); }} 
                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a.75.75 0 00-1.258 0A10.51 10.51 0 012.25 10.5a.75.75 0 000 1.5 10.51 10.51 0 014.327 5.803.75.75 0 001.258 0 10.51 10.51 0 0110.33 0 .75.75 0 001.258 0 10.51 10.51 0 014.327-5.803.75.75 0 000-1.5 10.51 10.51 0 01-4.327-5.803.75.75 0 00-1.258 0 10.51 10.51 0 01-10.33 0z" /></svg>} 
-                  label="REGISTRAR TRIUNFO" 
+                  label="LANÇAMENTO IA" 
                />
                <DashboardActionBtn 
                   onClick={() => { setSelectedRepId(undefined); setIsMountOpen(true); }} 
@@ -176,9 +192,9 @@ const App: React.FC = () => {
                   label="EXPEDIR TESOURO" 
                />
                <DashboardActionBtn 
-                  onClick={() => { setEditingRep(null); setIsRepOpen(true); }} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>} 
-                  label="VINCULAR ELITE" 
+                  onClick={() => setIsBulkOCROpen(true)} 
+                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
+                  label="DIGITALIZAR VENDAS" 
                />
                <DashboardActionBtn 
                   onClick={() => setActiveTab('financeiro')} 
@@ -198,7 +214,14 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'financeiro' && <FinancialDashboard movements={movements} products={products} summaries={summaries} />}
+        {activeTab === 'financeiro' && (
+          <div className="space-y-8">
+            <div className="flex justify-end px-4">
+              <button onClick={() => setIsImportOpen(true)} className="bg-zinc-100 text-zinc-600 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Importar Vendas (Texto)</button>
+            </div>
+            <FinancialDashboard movements={movements} products={products} summaries={summaries} />
+          </div>
+        )}
         {activeTab === 'movimentacoes' && (
           <div className="space-y-12 animate-in fade-in duration-500">
             <FinancialDashboard movements={movements} products={products} summaries={summaries} />
@@ -221,9 +244,15 @@ const App: React.FC = () => {
                           </div>
                        </div>
                        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <SummaryItem label="Patrimônio" value={formatCurrency(s.totalDelivered)} />
-                          <SummaryItem label="Vendido" value={formatCurrency(s.soldValue)} highlight />
-                          <SummaryItem label="Comissão" value={formatCurrency(s.commissionValue)} color="text-rose-500" />
+                          <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('total'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
+                            <SummaryItem label="Patrimônio" value={formatCurrency(s.totalDelivered)} />
+                          </div>
+                          <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('sold'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
+                            <SummaryItem label="Vendido" value={formatCurrency(s.soldValue)} highlight />
+                          </div>
+                          <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('commission'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
+                            <SummaryItem label="Comissão" value={formatCurrency(s.commissionValue)} color="text-rose-500" />
+                          </div>
                           <SummaryItem label="Status" value={s.status} />
                        </div>
                     </div>
@@ -286,11 +315,114 @@ const App: React.FC = () => {
       </nav>
 
       {/* MODAIS */}
-      <MovementModal isOpen={isMovOpen} onClose={() => { setIsMovOpen(false); setEditingMov(null); setMovType('Vendido'); }} editingMovement={editingMov} reps={reps} products={products} initialType={movType} initialRepId={selectedRepId} onSave={m => setMovements(prev => { const e = prev.find(x => x.id === m.id); return e ? prev.map(x => x.id === m.id ? m : x) : [m, ...prev]; })} />
+      <MovementModal 
+        isOpen={isMovOpen} 
+        onClose={() => { setIsMovOpen(false); setEditingMov(null); setMovType('Vendido'); }} 
+        editingMovement={editingMov} 
+        reps={reps} 
+        products={products} 
+        initialType={movType} 
+        initialRepId={selectedRepId} 
+        onSave={m => {
+          setMovements(prev => {
+            const exists = prev.find(x => x.id === m.id);
+            if (exists) {
+              // If editing, we'd need to revert old stock and apply new. 
+              // For simplicity in this "varedura", let's handle new movements stock update.
+              return prev.map(x => x.id === m.id ? m : x);
+            }
+            return [m, ...prev];
+          });
+          
+          // Update stock if it's a new movement
+          const exists = movements.find(x => x.id === m.id);
+          if (!exists) {
+            setProducts(prev => prev.map(p => {
+              if (p.id === m.productId) {
+                if (m.type === 'Vendido' || m.type === 'Devolvido') {
+                  // These types usually come FROM the representative's bag, 
+                  // but if we are tracking GLOBAL stock, 'Vendido' doesn't change global stock (it was already removed when 'Entregue')
+                  // However, 'Entregue' and 'Reposição' definitely REDUCE global stock.
+                  // 'Devolvido' INCREASES global stock.
+                  return p; 
+                }
+                if (m.type === 'Entregue' || m.type === 'Reposição') {
+                  return { ...p, stock: Math.max(0, p.stock - m.quantity) };
+                }
+                if (m.type === 'Devolvido') {
+                  // If returned to base, it goes back to global stock
+                  return { ...p, stock: p.stock + m.quantity };
+                }
+              }
+              return p;
+            }));
+          }
+        }} 
+      />
       <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} />
       <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />
       <MaletaMountModal isOpen={isMountOpen} onClose={() => setIsMountOpen(false)} reps={reps} products={products} initialRepId={selectedRepId} onSave={handleMountSave} />
       <OCRModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} onImport={p => setProducts(prev => [...p, ...prev])} />
+      <AdjustmentModal 
+        isOpen={isAdjOpen} 
+        onClose={() => setIsAdjOpen(false)} 
+        target={adjTarget} 
+        repId={targetRepId} 
+        onSave={m => setMovements(prev => [m, ...prev])} 
+      />
+      <SaleModal 
+        isOpen={isSaleOpen} 
+        onClose={() => setIsSaleOpen(false)} 
+        reps={reps} 
+        products={products} 
+        onSave={(s: Sale) => {
+          const movement: Movement = {
+            id: s.id,
+            date: s.date,
+            representativeId: s.representativeId,
+            productId: s.productId,
+            type: 'Vendido',
+            quantity: 1,
+            value: s.value
+          };
+          setMovements(prev => [movement, ...prev]);
+        }} 
+      />
+      <BulkSaleOCRModal 
+        isOpen={isBulkOCROpen} 
+        onClose={() => setIsBulkOCROpen(false)} 
+        reps={reps} 
+        products={products} 
+        onImport={(sales) => {
+          const newMovs = sales.map(s => ({
+            id: s.id,
+            date: s.date,
+            representativeId: s.representativeId,
+            productId: s.productId,
+            type: 'Vendido' as const,
+            quantity: 1,
+            value: s.value
+          }));
+          setMovements(prev => [...newMovs, ...prev]);
+        }} 
+      />
+      <ImportModal 
+        isOpen={isImportOpen} 
+        onClose={() => setIsImportOpen(false)} 
+        defaultRepId={reps[0]?.id || ''} 
+        onImport={(sales) => {
+          const newMovs = sales.map(s => ({
+            id: s.id,
+            date: s.date,
+            representativeId: s.representativeId,
+            productId: s.productId,
+            type: 'Vendido' as const,
+            quantity: 1,
+            value: s.value
+          }));
+          setMovements(prev => [...newMovs, ...prev]);
+        }} 
+      />
       
       {isPasteModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl">

@@ -31,33 +31,33 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, de
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl">
+      <div className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="p-10 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
           <div>
-            <h2 className="text-xl font-bold text-zinc-800">Importação em Lote</h2>
-            <p className="text-sm text-zinc-500">Cole aqui os dados da sua planilha antiga</p>
+            <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter">Importar Vendas</h2>
+            <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mt-2 italic">Processamento de texto em lote</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button onClick={onClose} className="p-3 text-zinc-400 hover:text-rose-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="p-10 space-y-6">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Ex: Maria, Brincos, 150.00..."
-            className="w-full h-64 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-mono text-sm resize-none"
+            className="w-full h-64 p-8 bg-zinc-50 border-2 border-zinc-100 rounded-[32px] font-mono text-sm outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
           />
           <button
             onClick={handleProcess}
             disabled={!text.trim()}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg transition-all"
+            className="w-full bg-emerald-500 text-zinc-900 font-black py-6 rounded-[24px] shadow-xl active:scale-95 transition-all text-xs uppercase tracking-widest disabled:opacity-50"
           >
-            Processar e Vincular à Vendedora Principal
+            Vincular e Salvar no Sistema
           </button>
         </div>
       </div>
