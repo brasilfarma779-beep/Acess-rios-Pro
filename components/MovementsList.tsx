@@ -1,15 +1,16 @@
 import React from 'react';
 import { Movement, Product, Representative } from '../types';
 import { formatCurrency, formatDate } from '../utils';
-import { History, ArrowUpRight, ArrowDownLeft, RefreshCcw, Settings } from 'lucide-react';
+import { History, ArrowUpRight, ArrowDownLeft, RefreshCcw, Settings, Trash2 } from 'lucide-react';
 
 interface MovementsListProps {
   movements: Movement[];
   products: Product[];
   reps: Representative[];
+  onDelete?: (id: string) => void;
 }
 
-const MovementsList: React.FC<MovementsListProps> = ({ movements, products, reps }) => {
+const MovementsList: React.FC<MovementsListProps> = ({ movements, products, reps, onDelete }) => {
   const sortedMovements = [...movements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const getIcon = (type: string) => {
@@ -42,6 +43,7 @@ const MovementsList: React.FC<MovementsListProps> = ({ movements, products, reps
               <th className="px-8 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-widest">Representante</th>
               <th className="px-8 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-widest">Produto</th>
               <th className="px-8 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-widest text-right">Valor Total</th>
+              {onDelete && <th className="px-8 py-4 text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center">Ações</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-50">
@@ -69,12 +71,26 @@ const MovementsList: React.FC<MovementsListProps> = ({ movements, products, reps
                   <td className="px-8 py-5 text-right">
                     <span className="text-sm font-black text-zinc-900">{formatCurrency(m.value * m.quantity)}</span>
                   </td>
+                  {onDelete && (
+                    <td className="px-8 py-5 text-center">
+                      <button 
+                        onClick={() => {
+                          if (window.confirm('Excluir esta movimentação?')) {
+                            onDelete(m.id);
+                          }
+                        }}
+                        className="p-2 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {movements.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-8 py-20 text-center">
+                <td colSpan={onDelete ? 6 : 5} className="px-8 py-20 text-center">
                   <p className="text-xs font-black text-zinc-300 uppercase italic">Nenhuma movimentação registrada</p>
                 </td>
               </tr>

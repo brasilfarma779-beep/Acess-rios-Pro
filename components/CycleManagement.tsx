@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../utils';
-import { Camera, Plus, CheckCircle, Clock, Package, Calendar, ArrowRight, Edit2, Trash2 } from 'lucide-react';
+import { Camera, Plus, CheckCircle, Clock, Package, Calendar, ArrowRight, Edit2, Trash2, Send } from 'lucide-react';
+import ExpeditionPanel from './ExpeditionPanel';
 
 // Tipos baseados no schema do banco de dados
 type ProductSnapshot = { id: string; name: string; price: number; photoUrl?: string };
@@ -56,6 +57,10 @@ const MOCK_CYCLE: ConsignmentCycle = {
 const CycleManagement: React.FC = () => {
   const [cycle, setCycle] = useState<ConsignmentCycle>(MOCK_CYCLE);
   const [isAdditiveModalOpen, setIsAdditiveModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [isExpeditionOpen, setIsExpeditionOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<CycleMovement | null>(null);
 
   // Lógica de Estado: Somando o valor total (Retirada Original + Aditivos)
   const totalValue = useMemo(() => {
@@ -80,7 +85,6 @@ const CycleManagement: React.FC = () => {
   }, [cycle.dueDate]);
 
   const handleAddAdditive = () => {
-    // Simulação de adição de um novo aditivo
     const newMovement: CycleMovement = {
       id: `mov-${Date.now()}`,
       type: 'ADITIVO',
@@ -107,13 +111,53 @@ const CycleManagement: React.FC = () => {
     }
   };
 
-  const handleEditMovement = (movId: string) => {
-    alert(`Abrir modal de edição para a movimentação: ${movId}`);
+  const handleEditMovement = (mov: CycleMovement) => {
+    setEditingMovement(mov);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMovement) return;
+    setCycle(prev => ({
+      ...prev,
+      movements: prev.movements.map(m => m.id === editingMovement.id ? editingMovement : m)
+    }));
+    setIsEditModalOpen(false);
+    setEditingMovement(null);
+  };
+
+  const handleFinalSettlement = () => {
+    if (window.confirm(`Deseja realizar o acerto final de ${formatCurrency(totalValue)}?`)) {
+      setCycle(prev => ({ ...prev, status: 'ACERTADO' }));
+      setIsSettlementModalOpen(true);
+    }
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-24">
       
+      {/* MODAL DE EXPEDIÇÃO (OVERLAY) */}
+      {isExpeditionOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-zinc-900/90 backdrop-blur-2xl overflow-y-auto">
+          <div className="w-full max-w-6xl my-auto">
+            <ExpeditionPanel 
+              sellerName={cycle.sellerName}
+              sellerPhone="5511999999999" // Em um cenário real, viria do objeto cycle/seller
+              items={cycle.movements.flatMap(m => m.items.map(i => ({
+                name: i.product.name,
+                quantity: i.quantity,
+                price: i.product.price
+              })))}
+              onComplete={(photoUrl) => {
+                // Aqui poderíamos atualizar o movimento original com a foto real
+                setIsExpeditionOpen(false);
+              }}
+              onCancel={() => setIsExpeditionOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* CABEÇALHO RESUMO */}
       <div className="bg-zinc-900 rounded-[48px] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-[100px] opacity-20 -translate-y-1/2 translate-x-1/4"></div>
@@ -121,7 +165,7 @@ const CycleManagement: React.FC = () => {
         <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${cycle.status === 'ACERTADO' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                 Ciclo {cycle.status}
               </span>
               <span className="text-zinc-400 text-xs font-bold flex items-center gap-1">
@@ -139,9 +183,9 @@ const CycleManagement: React.FC = () => {
                 <span className="text-[10px] font-black uppercase tracking-widest">Prazo Final</span>
               </div>
               <p className="text-3xl font-black tracking-tighter">
-                {daysRemaining} <span className="text-sm text-zinc-400 font-bold">dias</span>
+                {cycle.status === 'ACERTADO' ? '0' : daysRemaining} <span className="text-sm text-zinc-400 font-bold">dias</span>
               </p>
-              <p className="text-[9px] text-zinc-500 uppercase font-bold mt-1">Vence em {new Date(cycle.dueDate).toLocaleDateString('pt-BR')}</p>
+              <p className="text-[9px] text-zinc-500 uppercase font-bold mt-1">{cycle.status === 'ACERTADO' ? 'Ciclo Finalizado' : `Vence em ${new Date(cycle.dueDate).toLocaleDateString('pt-BR')}`}</p>
             </div>
 
             <div className="bg-emerald-500 rounded-[32px] p-6 text-zinc-900 flex flex-col justify-center min-w-[180px] shadow-lg shadow-emerald-500/20">
@@ -159,8 +203,23 @@ const CycleManagement: React.FC = () => {
       {/* AÇÕES PRINCIPAIS */}
       <div className="flex flex-col sm:flex-row gap-4 px-2">
         <button 
+          onClick={() => setIsExpeditionOpen(true)}
+          disabled={cycle.status === 'ACERTADO'}
+          className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-zinc-900 p-6 rounded-[32px] flex items-center justify-center gap-3 shadow-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="w-10 h-10 bg-white/20 text-zinc-900 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Send className="w-5 h-5" />
+          </div>
+          <div className="text-left">
+            <span className="block font-black uppercase italic tracking-tight text-lg leading-none">Expedir Maleta</span>
+            <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">Foto + WhatsApp</span>
+          </div>
+        </button>
+
+        <button 
           onClick={() => setIsAdditiveModalOpen(true)}
-          className="flex-1 bg-white border-2 border-zinc-100 hover:border-emerald-500 hover:shadow-lg text-zinc-900 p-6 rounded-[32px] flex items-center justify-center gap-3 transition-all group"
+          disabled={cycle.status === 'ACERTADO'}
+          className="flex-1 bg-white border-2 border-zinc-100 hover:border-emerald-500 hover:shadow-lg text-zinc-900 p-6 rounded-[32px] flex items-center justify-center gap-3 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
             <Plus className="w-5 h-5" />
@@ -171,7 +230,11 @@ const CycleManagement: React.FC = () => {
           </div>
         </button>
 
-        <button className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white p-6 rounded-[32px] flex items-center justify-center gap-3 shadow-xl transition-all group">
+        <button 
+          onClick={handleFinalSettlement}
+          disabled={cycle.status === 'ACERTADO'}
+          className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white p-6 rounded-[32px] flex items-center justify-center gap-3 shadow-xl transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <div className="w-10 h-10 bg-white/10 text-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
             <CheckCircle className="w-5 h-5" />
           </div>
@@ -205,7 +268,7 @@ const CycleManagement: React.FC = () => {
                   
                   {/* Ações de Edição/Exclusão */}
                   <div className="absolute top-8 right-8 flex items-center gap-2">
-                    <button onClick={() => handleEditMovement(mov.id)} className="p-2 text-zinc-300 hover:text-blue-500 transition-colors bg-zinc-50 hover:bg-blue-50 rounded-full">
+                    <button onClick={() => handleEditMovement(mov)} className="p-2 text-zinc-300 hover:text-blue-500 transition-colors bg-zinc-50 hover:bg-blue-50 rounded-full">
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDeleteMovement(mov.id)} className="p-2 text-zinc-300 hover:text-rose-500 transition-colors bg-zinc-50 hover:bg-rose-50 rounded-full">
@@ -275,6 +338,79 @@ const CycleManagement: React.FC = () => {
               <button onClick={() => setIsAdditiveModalOpen(false)} className="flex-1 py-4 rounded-3xl font-black text-xs uppercase tracking-widest text-zinc-500 hover:bg-zinc-100 transition-colors">Cancelar</button>
               <button onClick={handleAddAdditive} className="flex-1 py-4 rounded-3xl font-black text-xs uppercase tracking-widest bg-emerald-500 text-zinc-900 shadow-xl active:scale-95 transition-all">Simular Bipagem</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Movimentação */}
+      {isEditModalOpen && editingMovement && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl">
+          <div className="bg-white w-full max-w-md rounded-[48px] shadow-2xl overflow-hidden p-10">
+            <h2 className="text-2xl font-black text-zinc-900 italic uppercase tracking-tighter mb-6">Editar Movimentação</h2>
+            
+            <div className="space-y-6 mb-8">
+              <div>
+                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Data da Movimentação</label>
+                <input 
+                  type="datetime-local" 
+                  value={new Date(editingMovement.date).toISOString().slice(0, 16)}
+                  onChange={e => setEditingMovement({...editingMovement, date: new Date(e.target.value).toISOString()})}
+                  className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-bold outline-none focus:border-emerald-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Editar Quantidades</p>
+                {editingMovement.items.map((item, idx) => (
+                  <div key={item.id} className="flex items-center justify-between bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                    <span className="text-xs font-bold text-zinc-700">{item.product.name}</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => {
+                          const newItems = [...editingMovement.items];
+                          newItems[idx].quantity = Math.max(1, newItems[idx].quantity - 1);
+                          setEditingMovement({...editingMovement, items: newItems});
+                        }}
+                        className="w-8 h-8 bg-white border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-100"
+                      >
+                        -
+                      </button>
+                      <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => {
+                          const newItems = [...editingMovement.items];
+                          newItems[idx].quantity = newItems[idx].quantity + 1;
+                          setEditingMovement({...editingMovement, items: newItems});
+                        }}
+                        className="w-8 h-8 bg-white border border-zinc-200 rounded-lg flex items-center justify-center text-zinc-500 hover:bg-zinc-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button onClick={() => setIsEditModalOpen(false)} className="flex-1 py-4 rounded-3xl font-black text-xs uppercase tracking-widest text-zinc-500 hover:bg-zinc-100 transition-colors">Cancelar</button>
+              <button onClick={handleSaveEdit} className="flex-1 py-4 rounded-3xl font-black text-xs uppercase tracking-widest bg-zinc-900 text-white shadow-xl active:scale-95 transition-all">Salvar Alterações</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Sucesso no Acerto */}
+      {isSettlementModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-emerald-500/90 backdrop-blur-xl">
+          <div className="bg-white w-full max-w-md rounded-[48px] shadow-2xl overflow-hidden p-12 text-center animate-in zoom-in duration-500">
+            <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+              <CheckCircle className="w-12 h-12" />
+            </div>
+            <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter mb-4">Acerto Concluído!</h2>
+            <p className="text-zinc-500 font-medium mb-8">O ciclo de consignação de 60 dias foi finalizado com sucesso. O ranking da vendedora foi atualizado.</p>
+            
+            <button onClick={() => setIsSettlementModalOpen(false)} className="w-full py-5 rounded-3xl font-black text-xs uppercase tracking-widest bg-zinc-900 text-white shadow-2xl active:scale-95 transition-all">Fechar Painel</button>
           </div>
         </div>
       )}

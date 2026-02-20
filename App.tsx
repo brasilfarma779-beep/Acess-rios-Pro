@@ -226,7 +226,12 @@ const App: React.FC = () => {
         {activeTab === 'movimentacoes' && (
           <div className="space-y-12 animate-in fade-in duration-500">
             <FinancialDashboard movements={movements} products={products} summaries={summaries} />
-            <MovementsList movements={movements} products={products} reps={reps} />
+            <MovementsList 
+              movements={movements} 
+              products={products} 
+              reps={reps} 
+              onDelete={(id) => setMovements(prev => prev.filter(m => m.id !== id))}
+            />
           </div>
         )}
         {activeTab === 'ciclos' && (
@@ -245,6 +250,17 @@ const App: React.FC = () => {
                           <h3 className="text-2xl font-black text-zinc-900 uppercase italic leading-none mb-4">{s.repName}</h3>
                           <div className="flex gap-2">
                              <button onClick={() => { setSelectedRepId(s.repId); setMovType('Reposição'); setIsMovOpen(true); }} className="flex-1 bg-emerald-500 text-zinc-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">+ Reposição</button>
+                             <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Deseja excluir a vendedora ${s.repName}?`)) {
+                                    setReps(prev => prev.filter(r => r.id !== s.repId));
+                                  }
+                                }} 
+                                className="p-4 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 transition-colors"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
                           </div>
                        </div>
                        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -276,7 +292,18 @@ const App: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                  {products.map(p => (
-                   <div key={p.id} onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="bg-white p-8 rounded-[40px] border border-zinc-100 hover:border-zinc-900 transition-all group cursor-pointer shadow-sm">
+                   <div key={p.id} onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="bg-white p-8 rounded-[40px] border border-zinc-100 hover:border-zinc-900 transition-all group cursor-pointer shadow-sm relative">
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (window.confirm(`Deseja excluir o produto ${p.name}?`)) {
+                             setProducts(prev => prev.filter(x => x.id !== p.id));
+                           }
+                         }}
+                         className="absolute top-6 right-6 p-2 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                       >
+                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                       </button>
                       <span className="text-[9px] font-black bg-zinc-100 px-3 py-1.5 rounded-full uppercase italic text-zinc-400">{p.category}</span>
                       <h4 className="text-xl font-black text-zinc-900 uppercase italic mt-4">{p.name}</h4>
                       <div className="flex justify-between items-end mt-8">

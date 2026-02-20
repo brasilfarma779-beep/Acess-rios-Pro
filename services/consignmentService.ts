@@ -90,16 +90,18 @@ export function generateWhatsAppPayload(
   sellerPhone: string,
   sellerName: string,
   dueDate: string,
-  items: { name: string; quantity: number }[],
+  items: { name: string; quantity: number; price: number }[],
   photosUrl: string,
   movementType: 'RETIRADA_ORIGINAL' | 'ADITIVO'
 ): WhatsAppPayload {
   
-  const itemsList = items.map(i => `- ${i.quantity}x ${i.name}`).join('\n');
+  const totalValue = items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+  const itemsList = items.map(i => `- ${i.quantity}x ${i.name} (${formatCurrency(i.price)})`).join('\n');
   const title = movementType === 'RETIRADA_ORIGINAL' ? '🎒 Nova Maleta Retirada!' : '➕ Novo Aditivo Adicionado!';
 
   const messageBody = `*HUB SOBERANO* 💎\n\n` +
     `Olá, *${sellerName}*! ${title}\n\n` +
+    `💰 *Valor Total desta Remessa:* ${formatCurrency(totalValue)}\n` +
     `📅 *Data Limite para Acerto:* ${new Date(dueDate).toLocaleDateString('pt-BR')}\n\n` +
     `📦 *Itens Levados:*\n${itemsList}\n\n` +
     `📸 *Fotos das Peças:* ${photosUrl}\n\n` +
@@ -118,18 +120,120 @@ export function generateWhatsAppPayload(
   };
 }
 
-// Exemplo de uso do Webhook
+// Função que realiza o POST para a API do WhatsApp
 export async function triggerWhatsAppWebhook(payload: WhatsAppPayload) {
-  // POST para a API oficial do WhatsApp (Cloud API) ou provedor
+  // Exemplo de integração com a Cloud API do WhatsApp
   /*
-  await fetch('https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages', {
+  const response = await fetch(`https://graph.facebook.com/v17.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+      'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
   });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`WhatsApp API Error: ${JSON.stringify(error)}`);
+  }
   */
-  console.log('Webhook disparado para o WhatsApp:', payload);
+  
+  // Log para ambiente de desenvolvimento/demonstração
+  console.log('--- WHATSAPP WEBHOOK TRIGGERED ---');
+  console.log('To:', payload.to);
+  console.log('Message:', payload.text.body);
+  console.log('----------------------------------');
+}
+
+/**
+ * Função de Gatilho Imediato
+ * Deve ser chamada logo após salvar o movimento no banco de dados
+ */
+export async function onMovementRegistered(params: {
+  sellerPhone: string;
+  sellerName: string;
+  dueDate: string;
+  items: { name: string; quantity: number; price: number }[];
+  photosUrl: string;
+  movementType: 'RETIRADA_ORIGINAL' | 'ADITIVO';
+}) {
+  try {
+    console.log(`[WhatsApp Trigger] Iniciando disparo para ${params.sellerName}...`);
+    
+    const payload = generateWhatsAppPayload(
+      params.sellerPhone,
+      params.sellerName,
+      params.dueDate,
+      params.items,
+      params.photosUrl,
+      params.movementType
+    );
+
+    await triggerWhatsAppWebhook(payload);
+    
+    console.log(`[WhatsApp Trigger] Mensagem enviada com sucesso para ${params.sellerName}`);
+  } catch (error) {
+    console.error(`[WhatsApp Trigger] Erro ao enviar mensagem para ${params.sellerName}:`, error);
+    // Aqui poderíamos implementar uma fila de retry ou logar em um serviço de monitoramento
+  }
+}
+
+export interface ExpeditionRequest {
+  sellerName: string;
+  sellerPhone: string;
+  items: { name: string; quantity: number; price: number }[];
+  totalValue: number;
+  photoUrl: string;
+}
+
+/**
+ * 4. Expedição de Maleta e Recibo via WhatsApp
+ */
+export async function processSuitcaseExpedition(data: ExpeditionRequest) {
+  // 1. Calcular data de devolução (60 dias)
+  const today = new Date();
+  const dueDate = new Date(today);
+  dueDate.setDate(today.getDate() + 60);
+  const dueDateFormatted = dueDate.toLocaleDateString('pt-BR');
+
+  // 2. Formatar lista de itens para o WhatsApp
+  const itemsList = data.items
+    .map(item => `• ${item.quantity}x ${item.name} - ${formatCurrency(item.price * item.quantity)}`)
+    .join('\n');
+
+  // 3. Montar o template de texto
+  const messageBody = `Olá, *${data.sellerName}*! 💎\n` +
+    `Sua maleta de semijoias foi registrada e liberada com sucesso.\n\n` +
+    `📸 *Foto de conferência da sua maleta:*\n${data.photoUrl}\n\n` +
+    `📦 *Resumo dos itens na sua maleta:*\n${itemsList}\n\n` +
+    `💵 *Total em mercadorias:* ${formatCurrency(data.totalValue)}\n` +
+    `🗓️ *Data limite para devolução e acerto:* ${dueDateFormatted}\n\n` +
+    `💰 *Lembrete das suas Metas de Comissão:*\n` +
+    `- Vendas até R$ 4.999,99 = *30% de lucro*.\n` +
+    `- Vendas a partir de R$ 5.000,00 = *40% de lucro*!\n\n` +
+    `Desejamos excelentes vendas! Qualquer dúvida, estamos à disposição.`;
+
+  // 4. Disparar para a API do WhatsApp
+  const payload: WhatsAppPayload = {
+    messaging_product: "whatsapp",
+    to: data.sellerPhone,
+    type: "text",
+    text: {
+      body: messageBody
+    }
+  };
+
+  await triggerWhatsAppWebhook(payload);
+
+  return {
+    success: true,
+    dueDate: dueDate.toISOString(),
+    messageSent: true
+  };
+}
+
+// Auxiliar para formatar moeda no backend (simples)
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
