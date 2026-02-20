@@ -15,9 +15,10 @@ import AdjustmentModal from './components/AdjustmentModal.tsx';
 import SaleModal from './components/SaleModal.tsx';
 import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
 import ImportModal from './components/ImportModal.tsx';
+import CycleManagement from './components/CycleManagement.tsx';
 import { AdjustmentTarget, Sale } from './types.ts';
 
-type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes';
+type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes' | 'ciclos';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -228,6 +229,9 @@ const App: React.FC = () => {
             <MovementsList movements={movements} products={products} reps={reps} />
           </div>
         )}
+        {activeTab === 'ciclos' && (
+          <CycleManagement />
+        )}
         {activeTab === 'maletas' && (
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
@@ -304,6 +308,12 @@ const App: React.FC = () => {
           onClick={() => setActiveTab('maletas')} 
           icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745zM3.136 11.562L12 13l8.864-1.438A23.913 23.913 0 0012 10a23.914 23.914 0 00-8.864 1.562zM12 2l4 4V2H8v4l4-4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13a2 2 0 100-4 2 2 0 000 4z" /></svg>} 
           label="EQUIPE DE ELITE" 
+        />
+        <NavBtn 
+          active={activeTab === 'ciclos'} 
+          onClick={() => setActiveTab('ciclos')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>} 
+          label="CICLOS" 
         />
         <NavBtn 
           active={activeTab === 'produtos'} 
