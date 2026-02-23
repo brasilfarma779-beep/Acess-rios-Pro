@@ -33,6 +33,7 @@ export interface Product {
   code: string;
   price: number;
   stock: number;
+  image?: string;
 }
 
 export interface Sale {

@@ -14,7 +14,7 @@ import SaleModal from './components/SaleModal.tsx';
 import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
 import { AdjustmentTarget, Sale } from './types.ts';
 
-type Tab = 'dashboard' | 'maletas';
+type Tab = 'dashboard' | 'maletas' | 'catalogo';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -288,6 +288,54 @@ const App: React.FC = () => {
               </div>
            </div>
         )}
+        {activeTab === 'catalogo' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center px-4">
+              <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Catálogo</h2>
+              <button onClick={() => { setEditingProd(null); setIsProdOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">Novo Item</button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.length === 0 ? (
+                <div className="col-span-full py-20 text-center bg-white rounded-[48px] border border-dashed border-zinc-200">
+                  <p className="text-zinc-400 font-black uppercase tracking-widest text-xs italic">Seu catálogo está vazio</p>
+                </div>
+              ) : (
+                products.map(p => (
+                  <div key={p.id} className="bg-white rounded-[40px] border border-zinc-100 shadow-sm overflow-hidden hover:shadow-md transition-all group">
+                    <div className="aspect-square bg-zinc-100 relative">
+                      {p.image ? (
+                        <img src={p.image} className="w-full h-full object-cover" alt={p.name} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                          <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" /></svg>
+                        </div>
+                      )}
+                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="p-3 bg-white/90 text-zinc-900 rounded-xl shadow-lg hover:bg-white transition-all">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block mb-1 italic">{p.category}</span>
+                          <h4 className="text-lg font-black text-zinc-900 uppercase italic leading-tight">{p.name}</h4>
+                        </div>
+                        <span className="text-lg font-black text-emerald-600">{formatCurrency(p.price)}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-zinc-50">
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Cód: {p.code || 'S/C'}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${p.stock > 0 ? 'text-zinc-900' : 'text-rose-500'}`}>Estoque: {p.stock}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-zinc-100 px-8 py-6 flex justify-around items-center z-50 rounded-t-[40px] shadow-lg">
@@ -302,6 +350,12 @@ const App: React.FC = () => {
           onClick={() => setActiveTab('maletas')} 
           icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745zM3.136 11.562L12 13l8.864-1.438A23.913 23.913 0 0012 10a23.914 23.914 0 00-8.864 1.562zM12 2l4 4V2H8v4l4-4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13a2 2 0 100-4 2 2 0 000 4z" /></svg>} 
           label="EQUIPE DE ELITE" 
+        />
+        <NavBtn 
+          active={activeTab === 'catalogo'} 
+          onClick={() => setActiveTab('catalogo')} 
+          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>} 
+          label="CATÁLOGO" 
         />
       </nav>
 
