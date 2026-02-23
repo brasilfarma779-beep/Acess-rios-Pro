@@ -8,6 +8,7 @@ import MovementModal from './components/MovementModal.tsx';
 import RepresentativeModal from './components/RepresentativeModal.tsx';
 import ProductModal from './components/ProductModal.tsx';
 import OCRModal from './components/OCRModal.tsx';
+import ProductScannerModal from './components/ProductScannerModal.tsx';
 import AdjustmentModal from './components/AdjustmentModal.tsx';
 import SaleModal from './components/SaleModal.tsx';
 import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
@@ -18,6 +19,7 @@ type Tab = 'dashboard' | 'maletas';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isOCRModalOpen, setIsOCRModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [reps, setReps] = useState<Representative[]>(() => {
@@ -187,24 +189,29 @@ const App: React.FC = () => {
                </div>
             </section>
 
-            {/* AÇÕES DE GESTÃO RÁPIDA */}
-            <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
-               <DashboardActionBtn 
-                  onClick={() => setIsSaleOpen(true)} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
-                  label="VENDA RÁPIDA" 
-               />
-               <DashboardActionBtn 
-                  onClick={() => setIsBulkOCROpen(true)} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
-                  label="DIGITALIZAR VENDAS" 
-               />
-               <DashboardActionBtn 
-                  onClick={() => setActiveTab('maletas')} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} 
-                  label="VISÃO SOBERANA" 
-               />
-            </section>
+             {/* AÇÕES DE GESTÃO RÁPIDA */}
+             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <DashboardActionBtn 
+                   onClick={() => setIsSaleOpen(true)} 
+                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
+                   label="VENDA RÁPIDA" 
+                />
+                <DashboardActionBtn 
+                   onClick={() => setIsScannerOpen(true)} 
+                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>} 
+                   label="SCANNER" 
+                />
+                <DashboardActionBtn 
+                   onClick={() => setIsBulkOCROpen(true)} 
+                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} 
+                   label="DIGITALIZAR" 
+                />
+                <DashboardActionBtn 
+                   onClick={() => setActiveTab('maletas')} 
+                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} 
+                   label="VISÃO GERAL" 
+                />
+             </section>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatsCard label="Vendido (Mês)" value={formatCurrency(stats.totalSold)} colorClass="text-zinc-900" />
@@ -346,6 +353,7 @@ const App: React.FC = () => {
       <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} />
       <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />
       <OCRModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} onImport={p => setProducts(prev => [...p, ...prev])} />
+      <ProductScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} products={products} />
       <AdjustmentModal 
         isOpen={isAdjOpen} 
         onClose={() => setIsAdjOpen(false)} 

@@ -106,7 +106,63 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024): Promise<string> => {
+export const validateProductImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      img.src = e.target?.result as string;
+    };
+
+    img.onload = function () {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject("Erro ao processar imagem.");
+        return;
+      }
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+
+      let brilhoTotal = 0;
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        brilhoTotal += (r + g + b) / 3;
+      }
+
+      const brilhoMedio = brilhoTotal / (pixels.length / 4);
+
+      // 🔎 Validação de brilho
+      if (brilhoMedio < 60) {
+        reject("Foto com pouca iluminação. Tire a foto com mais luz.");
+        return;
+      }
+
+      // 📏 Validação de tamanho mínimo
+      if (img.width < 600 || img.height < 600) {
+        reject("Imagem com baixa resolução. Aproxime mais o produto.");
+        return;
+      }
+
+      resolve("Imagem válida");
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+
+export const resizeImage = (file: File, maxWidth = 1280, maxHeight = 1280): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -133,8 +189,12 @@ export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024): Prom
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         resolve(dataUrl.split(',')[1]);
       };
       img.onerror = reject;

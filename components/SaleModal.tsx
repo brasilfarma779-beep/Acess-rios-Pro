@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Category, Sale, Representative, Product, SaleStatus } from '../types';
-import { generateId, fileToBase64, resizeImage } from '../utils';
+import { generateId, fileToBase64, resizeImage, validateProductImage } from '../utils';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface SaleModalProps {
@@ -64,6 +64,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
     setSuggestions([]);
     
     try {
+      await validateProductImage(file);
       const base64Data = await resizeImage(file);
       setScanPreview(`data:image/jpeg;base64,${base64Data}`);
       
@@ -85,18 +86,23 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
           {
             parts: [
               { inlineData: { data: base64Data, mimeType: file.type } },
-              { text: `Você é um assistente de vendas de uma loja de acessórios. 
-                       Analise a foto deste acessório e identifique qual produto do catálogo abaixo é o MAIS provável de ser o da imagem.
-                       
+              { text: `Você é um especialista em identificação de semijoias e acessórios.
+                       Sua tarefa é analisar a imagem fornecida e encontrar o produto correspondente no catálogo.
+
+                       INSTRUÇÕES:
+                       1. Observe detalhes como: formato, cor do banho (ouro, prata, ródio), pedrarias, texturas e tipo de acessório (brinco, anel, etc).
+                       2. Compare essas características visuais com os nomes e códigos dos produtos no catálogo.
+                       3. Se o nome do produto for genérico, use a categoria e o preço como pistas adicionais.
+
                        Catálogo Disponível:
                        ${JSON.stringify(simplifiedCatalog)}
                        
-                       Retorne um JSON com:
-                       - matchId: string (o ID do produto se tiver 90% ou mais de certeza)
-                       - suggestionsIds: array de strings (lista de até 3 IDs se houver dúvida ou similaridade)
-                       - reason: string (breve motivo da escolha)
+                       Retorne um JSON estrito com:
+                       - matchId: string (ID do produto se tiver certeza absoluta, >90%)
+                       - suggestionsIds: array de strings (lista de até 4 IDs de produtos visualmente semelhantes se houver dúvida)
+                       - reason: string (breve explicação técnica do porquê escolheu esse produto, ex: "Brinco de argola dourada com textura similar à imagem")
                        
-                       Responda apenas com o JSON.` }
+                       Responda APENAS o JSON.` }
             ]
           }
         ],

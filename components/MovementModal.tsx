@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Category, Movement, MovementType, Representative, Product } from '../types';
 // Fixed: Added missing formatCurrency to imports
-import { generateId, fileToBase64, formatCurrency, resizeImage } from '../utils';
+import { generateId, fileToBase64, formatCurrency, resizeImage, validateProductImage } from '../utils';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface MovementModalProps {
@@ -80,6 +80,7 @@ const MovementModal: React.FC<MovementModalProps> = ({
     setSuggestions([]);
     
     try {
+      await validateProductImage(file);
       const base64Data = await resizeImage(file);
       setScanPreview(`data:image/jpeg;base64,${base64Data}`);
       
@@ -98,18 +99,23 @@ const MovementModal: React.FC<MovementModalProps> = ({
           {
             parts: [
               { inlineData: { data: base64Data, mimeType: file.type } },
-              { text: `Aja como um assistente de logística de semijoias. 
-                       O contexto atual é uma ${type} (pode ser venda ou reposição de maleta).
-                       Identifique qual produto do catálogo é o da imagem.
-                       
+              { text: `Você é um especialista em logística de semijoias.
+                       Analise a imagem deste item que está sendo processado como ${type}.
+                       Identifique qual produto do catálogo abaixo corresponde à imagem.
+
+                       INSTRUÇÕES:
+                       1. Analise o design, cor, pedras e formato do acessório.
+                       2. Procure no catálogo o item que melhor descreve visualmente o que você vê.
+                       3. Considere o código do produto se houver alguma etiqueta visível.
+
                        Catálogo: ${JSON.stringify(simplifiedCatalog)}
                        
-                       Retorne um JSON com:
-                       - matchId: string (se tiver 90% certeza)
-                       - suggestionsIds: array (até 3 similares se houver dúvida)
-                       - reason: string
+                       Retorne um JSON estrito com:
+                       - matchId: string (ID se tiver certeza absoluta)
+                       - suggestionsIds: array (até 4 IDs similares se houver dúvida)
+                       - reason: string (explicação da identificação)
                        
-                       Responda apenas com o JSON.` }
+                       Responda APENAS o JSON.` }
             ]
           }
         ],
