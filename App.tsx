@@ -2,29 +2,22 @@
 // @google/genai guidelines followed: Using GoogleGenAI with named parameters and direct API_KEY access.
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Movement, Representative, Product, Category, MaletaSummary, MovementType } from './types.ts';
-import { calculateMaletaSummaries, formatCurrency, generateId, parsePastedProducts, exportFullData } from './utils.ts';
+import { calculateMaletaSummaries, formatCurrency, generateId, exportFullData } from './utils.ts';
 import StatsCard from './components/StatsCard.tsx';
 import MovementModal from './components/MovementModal.tsx';
 import RepresentativeModal from './components/RepresentativeModal.tsx';
 import ProductModal from './components/ProductModal.tsx';
-import MaletaMountModal from './components/MaletaMountModal.tsx';
 import OCRModal from './components/OCRModal.tsx';
-import FinancialDashboard from './components/FinancialDashboard.tsx';
-import MovementsList from './components/MovementsList.tsx';
 import AdjustmentModal from './components/AdjustmentModal.tsx';
 import SaleModal from './components/SaleModal.tsx';
 import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
-import ImportModal from './components/ImportModal.tsx';
-import CycleManagement from './components/CycleManagement.tsx';
 import { AdjustmentTarget, Sale } from './types.ts';
 
-type Tab = 'dashboard' | 'financeiro' | 'maletas' | 'produtos' | 'movimentacoes' | 'ciclos';
+type Tab = 'dashboard' | 'maletas';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [isOCRModalOpen, setIsOCRModalOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [reps, setReps] = useState<Representative[]>(() => {
@@ -49,13 +42,11 @@ const App: React.FC = () => {
 
   // Modais
   const [isMovOpen, setIsMovOpen] = useState(false);
-  const [isMountOpen, setIsMountOpen] = useState(false);
   const [isRepOpen, setIsRepOpen] = useState(false);
   const [isProdOpen, setIsProdOpen] = useState(false);
   const [isAdjOpen, setIsAdjOpen] = useState(false);
   const [isSaleOpen, setIsSaleOpen] = useState(false);
   const [isBulkOCROpen, setIsBulkOCROpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
   const [adjTarget, setAdjTarget] = useState<AdjustmentTarget>('sold');
   const [targetRepId, setTargetRepId] = useState('');
   
@@ -95,24 +86,6 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleBatchImport = () => {
-    const newItems = parsePastedProducts(pasteText);
-    if (newItems.length === 0) return alert('Nenhum dado encontrado.');
-    setProducts(prev => [...newItems, ...prev]);
-    setPasteText('');
-    setIsPasteModalOpen(false);
-    alert(`${newItems.length} novos produtos cadastrados via texto!`);
-  };
-
-  const handleMountSave = (newMovements: Movement[]) => {
-    setMovements(prev => [...newMovements, ...prev]);
-    setProducts(prev => prev.map(p => {
-      const usedCount = newMovements.filter(m => m.productId === p.id).reduce((sum, m) => sum + m.quantity, 0);
-      return usedCount > 0 ? { ...p, stock: p.stock - usedCount } : p;
-    }));
-    setIsMountOpen(false);
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 pb-32 font-sans">
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-40 px-6 py-4">
@@ -149,20 +122,13 @@ const App: React.FC = () => {
                   <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">Abastecer Estoque</h2>
                   <p className="text-zinc-400 font-medium mb-10 text-sm">Escolha como quer cadastrar suas novas semijoias:</p>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                      <QuickEntryBtn 
                         onClick={() => setIsOCRModalOpen(true)}
                         icon={<svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                         label="Pela Câmera (IA)"
                         sub="Lê etiquetas e tags"
                         color="bg-emerald-500 text-zinc-900"
-                     />
-                     <QuickEntryBtn 
-                        onClick={() => setIsPasteModalOpen(true)}
-                        icon={<svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
-                        label="Importar Lista"
-                        sub="Copia e cola do Zap"
-                        color="bg-zinc-800 text-zinc-300"
                      />
                      <QuickEntryBtn 
                         onClick={() => { setEditingProd(null); setIsProdOpen(true); }}
@@ -176,21 +142,11 @@ const App: React.FC = () => {
             </section>
 
             {/* AÇÕES DE GESTÃO RÁPIDA */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
                <DashboardActionBtn 
                   onClick={() => setIsSaleOpen(true)} 
                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
                   label="VENDA RÁPIDA" 
-               />
-               <DashboardActionBtn 
-                  onClick={() => { setMovType('Vendido'); setIsMovOpen(true); }} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a.75.75 0 00-1.258 0A10.51 10.51 0 012.25 10.5a.75.75 0 000 1.5 10.51 10.51 0 014.327 5.803.75.75 0 001.258 0 10.51 10.51 0 0110.33 0 .75.75 0 001.258 0 10.51 10.51 0 014.327-5.803.75.75 0 000-1.5 10.51 10.51 0 01-4.327-5.803.75.75 0 00-1.258 0 10.51 10.51 0 01-10.33 0z" /></svg>} 
-                  label="LANÇAMENTO IA" 
-               />
-               <DashboardActionBtn 
-                  onClick={() => { setSelectedRepId(undefined); setIsMountOpen(true); }} 
-                  icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>} 
-                  label="EXPEDIR TESOURO" 
                />
                <DashboardActionBtn 
                   onClick={() => setIsBulkOCROpen(true)} 
@@ -198,7 +154,7 @@ const App: React.FC = () => {
                   label="DIGITALIZAR VENDAS" 
                />
                <DashboardActionBtn 
-                  onClick={() => setActiveTab('financeiro')} 
+                  onClick={() => setActiveTab('maletas')} 
                   icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} 
                   label="VISÃO SOBERANA" 
                />
@@ -215,28 +171,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'financeiro' && (
-          <div className="space-y-8">
-            <div className="flex justify-end px-4">
-              <button onClick={() => setIsImportOpen(true)} className="bg-zinc-100 text-zinc-600 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Importar Vendas (Texto)</button>
-            </div>
-            <FinancialDashboard movements={movements} products={products} summaries={summaries} />
-          </div>
-        )}
-        {activeTab === 'movimentacoes' && (
-          <div className="space-y-12 animate-in fade-in duration-500">
-            <FinancialDashboard movements={movements} products={products} summaries={summaries} />
-            <MovementsList 
-              movements={movements} 
-              products={products} 
-              reps={reps} 
-              onDelete={(id) => setMovements(prev => prev.filter(m => m.id !== id))}
-            />
-          </div>
-        )}
-        {activeTab === 'ciclos' && (
-          <CycleManagement />
-        )}
         {activeTab === 'maletas' && (
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
@@ -247,9 +181,29 @@ const App: React.FC = () => {
                  {summaries.map(s => (
                     <div key={s.repId} className="bg-white p-8 rounded-[48px] border border-zinc-100 shadow-sm flex flex-col lg:flex-row gap-8 hover:shadow-lg transition-all">
                        <div className="lg:w-1/3">
-                          <h3 className="text-2xl font-black text-zinc-900 uppercase italic leading-none mb-4">{s.repName}</h3>
+                          <h3 className="text-2xl font-black text-zinc-900 uppercase italic leading-none mb-1">{s.repName}</h3>
+                          <a 
+                            href={`https://wa.me/${s.repPhone.replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4 hover:underline block"
+                          >
+                            {s.repPhone}
+                          </a>
                           <div className="flex gap-2">
                              <button onClick={() => { setSelectedRepId(s.repId); setMovType('Reposição'); setIsMovOpen(true); }} className="flex-1 bg-emerald-500 text-zinc-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">+ Reposição</button>
+                             <button 
+                                onClick={() => {
+                                  const rep = reps.find(r => r.id === s.repId);
+                                  if (rep) {
+                                    setEditingRep(rep);
+                                    setIsRepOpen(true);
+                                  }
+                                }}
+                                className="p-4 bg-zinc-100 text-zinc-600 rounded-2xl hover:bg-zinc-200 transition-colors"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
                              <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -265,13 +219,13 @@ const App: React.FC = () => {
                        </div>
                        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('total'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
-                            <SummaryItem label="Patrimônio" value={formatCurrency(s.totalDelivered)} />
+                             <SummaryItem label="Patrimônio" value={formatCurrency(s.totalDelivered)} />
                           </div>
                           <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('sold'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
-                            <SummaryItem label="Vendido" value={formatCurrency(s.soldValue)} highlight />
+                             <SummaryItem label="Vendido" value={formatCurrency(s.soldValue)} highlight />
                           </div>
                           <div onClick={() => { setTargetRepId(s.repId); setAdjTarget('commission'); setIsAdjOpen(true); }} className="cursor-pointer hover:opacity-80 transition-opacity">
-                            <SummaryItem label="Comissão" value={formatCurrency(s.commissionValue)} color="text-rose-500" />
+                             <SummaryItem label="Comissão" value={formatCurrency(s.commissionValue)} color="text-rose-500" />
                           </div>
                           <SummaryItem label="Status" value={s.status} />
                        </div>
@@ -280,44 +234,9 @@ const App: React.FC = () => {
               </div>
            </div>
         )}
-
-        {activeTab === 'produtos' && (
-           <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex justify-between items-center px-4">
-                <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Acervo</h2>
-                <div className="flex gap-2">
-                   <button onClick={() => setIsPasteModalOpen(true)} className="bg-zinc-100 text-zinc-600 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Colar Lote</button>
-                   <button onClick={() => { setEditingProd(null); setIsProdOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">Novo Item</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {products.map(p => (
-                   <div key={p.id} onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="bg-white p-8 rounded-[40px] border border-zinc-100 hover:border-zinc-900 transition-all group cursor-pointer shadow-sm relative">
-                       <button 
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           if (window.confirm(`Deseja excluir o produto ${p.name}?`)) {
-                             setProducts(prev => prev.filter(x => x.id !== p.id));
-                           }
-                         }}
-                         className="absolute top-6 right-6 p-2 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                       >
-                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                       </button>
-                      <span className="text-[9px] font-black bg-zinc-100 px-3 py-1.5 rounded-full uppercase italic text-zinc-400">{p.category}</span>
-                      <h4 className="text-xl font-black text-zinc-900 uppercase italic mt-4">{p.name}</h4>
-                      <div className="flex justify-between items-end mt-8">
-                         <p className="text-2xl font-black text-zinc-900">{formatCurrency(p.price)}</p>
-                         <p className="text-[10px] font-black text-zinc-400">{p.stock} un.</p>
-                      </div>
-                   </div>
-                 ))}
-              </div>
-           </div>
-        )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-zinc-100 px-8 py-6 flex justify-between items-center z-50 rounded-t-[40px] shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-zinc-100 px-8 py-6 flex justify-around items-center z-50 rounded-t-[40px] shadow-lg">
         <NavBtn 
           active={activeTab === 'dashboard'} 
           onClick={() => setActiveTab('dashboard')} 
@@ -325,30 +244,11 @@ const App: React.FC = () => {
           label="MEU HUB" 
         />
         <NavBtn 
-          active={activeTab === 'financeiro'} 
-          onClick={() => setActiveTab('financeiro')} 
-          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} 
-          label="COFRE REAL" 
-        />
-        <NavBtn 
           active={activeTab === 'maletas'} 
           onClick={() => setActiveTab('maletas')} 
           icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745zM3.136 11.562L12 13l8.864-1.438A23.913 23.913 0 0012 10a23.914 23.914 0 00-8.864 1.562zM12 2l4 4V2H8v4l4-4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13a2 2 0 100-4 2 2 0 000 4z" /></svg>} 
           label="EQUIPE DE ELITE" 
         />
-        <NavBtn 
-          active={activeTab === 'ciclos'} 
-          onClick={() => setActiveTab('ciclos')} 
-          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>} 
-          label="CICLOS" 
-        />
-        <NavBtn 
-          active={activeTab === 'produtos'} 
-          onClick={() => setActiveTab('produtos')} 
-          icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 5l6-4 6 4m-12 0l6 14 6-14M6 5l12 0" /></svg>} 
-          label="ACERVO SOBERANO" 
-        />
-        <NavBtn active={activeTab === 'movimentacoes'} onClick={() => setActiveTab('movimentacoes')} icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" /></svg>} label="Histórico" />
       </nav>
 
       {/* MODAIS */}
@@ -398,7 +298,6 @@ const App: React.FC = () => {
       />
       <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} />
       <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />
-      <MaletaMountModal isOpen={isMountOpen} onClose={() => setIsMountOpen(false)} reps={reps} products={products} initialRepId={selectedRepId} onSave={handleMountSave} />
       <OCRModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} onImport={p => setProducts(prev => [...p, ...prev])} />
       <AdjustmentModal 
         isOpen={isAdjOpen} 
@@ -437,44 +336,12 @@ const App: React.FC = () => {
             representativeId: s.representativeId,
             productId: s.productId,
             type: 'Vendido' as const,
-            quantity: 1,
+            quantity: s.quantity || 1,
             value: s.value
           }));
           setMovements(prev => [...newMovs, ...prev]);
         }} 
       />
-      <ImportModal 
-        isOpen={isImportOpen} 
-        onClose={() => setIsImportOpen(false)} 
-        defaultRepId={reps[0]?.id || ''} 
-        onImport={(sales) => {
-          const newMovs = sales.map(s => ({
-            id: s.id,
-            date: s.date,
-            representativeId: s.representativeId,
-            productId: s.productId,
-            type: 'Vendido' as const,
-            quantity: 1,
-            value: s.value
-          }));
-          setMovements(prev => [...newMovs, ...prev]);
-        }} 
-      />
-      
-      {isPasteModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-xl">
-          <div className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl overflow-hidden">
-            <div className="p-10 border-b border-zinc-100 flex justify-between items-center">
-              <h2 className="text-3xl font-black text-zinc-900 italic uppercase tracking-tighter">Importar do WhatsApp</h2>
-              <button onClick={() => setIsPasteModalOpen(false)} className="p-3 text-zinc-400 hover:text-rose-500 transition-colors"><svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-            </div>
-            <div className="p-10">
-              <textarea autoFocus value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="Cole o texto aqui. Ex:&#10;Brinco Argola R$ 45,00&#10;Colar Ouro R$ 120,00" className="w-full h-64 p-8 bg-zinc-50 border-2 border-zinc-100 rounded-[32px] font-mono text-sm outline-none focus:border-emerald-500 transition-all resize-none shadow-inner" />
-              <button onClick={handleBatchImport} className="w-full py-6 mt-8 rounded-[24px] bg-emerald-500 text-zinc-900 font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">Processar e Salvar Tudo</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

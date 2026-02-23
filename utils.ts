@@ -66,6 +66,7 @@ export const calculateMaletaSummaries = (movements: Movement[], reps: Representa
     return {
       repId: rep.id,
       repName: rep.name,
+      repPhone: rep.phone,
       totalDelivered: totalDeliveredValue,
       totalSold: qtySold,
       totalReturned: qtyReturned,
@@ -77,64 +78,6 @@ export const calculateMaletaSummaries = (movements: Movement[], reps: Representa
       additionalValue,
       isClosed: !rep.active,
       status: rep.status || 'Em Campo'
-    };
-  });
-};
-
-export const parsePastedProducts = (text: string): Product[] => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  return lines.map(line => {
-    const moneyRegex = /(?:R\$?\s*)?(\d+(?:\.\d+)?(?:,\d+)?)\b/g;
-    const matches = Array.from(line.matchAll(moneyRegex));
-    
-    let name = line.trim();
-    let price = 0;
-    let quantity = 10;
-
-    if (matches.length > 0) {
-      const lastMatch = matches[matches.length - 1];
-      const priceStr = lastMatch[1].replace(/\./g, '').replace(',', '.');
-      price = parseFloat(priceStr) || 0;
-      name = line.replace(lastMatch[0], '').trim();
-    }
-
-    return {
-      id: generateId(),
-      name: name || 'Produto Sem Nome',
-      category: Category.BRINCOS,
-      code: `SKU-${generateId().toUpperCase().substring(0,3)}`,
-      price,
-      stock: quantity
-    };
-  });
-};
-
-// Added missing parsePastedData function to handle sales text import for ImportModal component.
-export const parsePastedData = (text: string, representativeId: string): Sale[] => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  return lines.map(line => {
-    const moneyRegex = /(?:R\$?\s*)?(\d+(?:\.\d+)?(?:,\d+)?)\b/g;
-    const matches = Array.from(line.matchAll(moneyRegex));
-    
-    let client = line.trim();
-    let value = 0;
-
-    if (matches.length > 0) {
-      const lastMatch = matches[matches.length - 1];
-      const priceStr = lastMatch[1].replace(/\./g, '').replace(',', '.');
-      value = parseFloat(priceStr) || 0;
-      client = line.replace(lastMatch[0], '').trim();
-    }
-
-    return {
-      id: generateId(),
-      date: new Date().toISOString(),
-      representativeId,
-      productId: '', 
-      client: client || 'Cliente Avulso',
-      category: Category.BRINCOS,
-      value,
-      status: 'Vendida'
     };
   });
 };

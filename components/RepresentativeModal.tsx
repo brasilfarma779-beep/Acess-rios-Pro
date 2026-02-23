@@ -61,6 +61,10 @@ const RepresentativeModal: React.FC<RepresentativeModalProps> = ({ isOpen, onClo
             <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl focus:border-emerald-500 transition-all font-black" />
           </div>
           <div>
+            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">WhatsApp (Número)</label>
+            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(00) 00000-0000" required className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl focus:border-emerald-500 transition-all font-black" />
+          </div>
+          <div>
             <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Status da Maleta</label>
             <div className="grid grid-cols-2 gap-2">
                <button type="button" onClick={() => setStatus('Em Campo')} className={`p-3 rounded-xl text-[10px] font-black uppercase transition-all ${status === 'Em Campo' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-zinc-100 text-zinc-400'}`}>Em Campo</button>

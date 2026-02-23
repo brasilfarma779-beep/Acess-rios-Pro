@@ -42,6 +42,7 @@ export interface Sale {
   productId: string;
   client: string;
   category: Category;
+  quantity?: number;
   value: number;
   status: SaleStatus;
   image?: string;
@@ -62,6 +63,7 @@ export interface Movement {
 export interface MaletaSummary {
   repId: string;
   repName: string;
+  repPhone: string;
   totalDelivered: number; 
   totalSold: number;
   totalReturned: number;
