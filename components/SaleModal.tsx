@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Category, Sale, Representative, Product, SaleStatus } from '../types';
-import { generateId, fileToBase64 } from '../utils';
+import { generateId, fileToBase64, resizeImage } from '../utils';
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface SaleModalProps {
@@ -10,12 +10,14 @@ interface SaleModalProps {
   onSave: (sale: Sale) => void;
   reps: Representative[];
   products: Product[];
+  initialRepId?: string;
 }
 
-const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, products }) => {
+const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, products, initialRepId }) => {
   const [client, setClient] = useState('');
-  const [repId, setRepId] = useState('');
+  const [repId, setRepId] = useState(initialRepId || '');
   const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [category, setCategory] = useState<Category>(Category.BRINCOS);
   const [value, setValue] = useState('');
   const [status, setStatus] = useState<SaleStatus>('Vendida');
@@ -27,11 +29,15 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (reps.length > 0 && !repId) {
-      const activeRep = reps.find(r => r.active);
-      setRepId(activeRep?.id || reps[0].id);
+    if (isOpen) {
+      if (initialRepId) {
+        setRepId(initialRepId);
+      } else if (reps.length > 0 && !repId) {
+        const activeRep = reps.find(r => r.active);
+        setRepId(activeRep?.id || reps[0].id);
+      }
     }
-  }, [reps, isOpen]);
+  }, [reps, isOpen, initialRepId]);
 
   if (!isOpen) return null;
 
@@ -56,10 +62,11 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
 
     setIsScanning(true);
     setSuggestions([]);
-    setScanPreview(URL.createObjectURL(file));
-
+    
     try {
-      const base64Data = await fileToBase64(file);
+      const base64Data = await resizeImage(file);
+      setScanPreview(`data:image/jpeg;base64,${base64Data}`);
+      
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       // Enviamos apenas o necessário do catálogo para economizar tokens e ser mais rápido
@@ -144,6 +151,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
       productId,
       client: client || 'Cliente Avulso',
       category,
+      quantity,
       value: saleValue,
       status
     });
@@ -151,6 +159,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
     // Reset e Fechar
     setClient('');
     setProductId('');
+    setQuantity(1);
     setValue('');
     setSuggestions([]);
     setScanPreview(null);
@@ -196,30 +205,55 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
                 </button>
               </div>
             ) : (
-              <button 
-                type="button"
-                disabled={isScanning || products.length === 0}
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-10 rounded-[32px] border-4 border-dashed border-emerald-100 bg-emerald-50/30 flex flex-col items-center justify-center gap-3 transition-all hover:border-emerald-200 hover:bg-emerald-50 active:scale-[0.98] group"
-              >
-                <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-emerald-200 group-hover:scale-110 transition-transform">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <span className="block font-black text-emerald-800 text-sm uppercase tracking-tight">Câmera Inteligente</span>
-                  <span className="text-[10px] text-emerald-600 font-bold opacity-60">Toque para reconhecer produto</span>
-                </div>
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  type="button"
+                  disabled={isScanning || products.length === 0}
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.setAttribute('capture', 'environment');
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  className="py-8 rounded-[32px] border-4 border-dashed border-emerald-100 bg-emerald-50/30 flex flex-col items-center justify-center gap-2 transition-all hover:border-emerald-200 hover:bg-emerald-50 active:scale-[0.98] group"
+                >
+                  <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-100 group-hover:scale-110 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <span className="block font-black text-emerald-800 text-[10px] uppercase tracking-tight">Câmera</span>
+                  </div>
+                </button>
+                <button 
+                  type="button"
+                  disabled={isScanning || products.length === 0}
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.removeAttribute('capture');
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  className="py-8 rounded-[32px] border-4 border-dashed border-zinc-100 bg-zinc-50/30 flex flex-col items-center justify-center gap-2 transition-all hover:border-zinc-200 hover:bg-zinc-50 active:scale-[0.98] group"
+                >
+                  <div className="w-12 h-12 bg-zinc-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-zinc-100 group-hover:scale-110 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <span className="block font-black text-zinc-500 text-[10px] uppercase tracking-tight">Galeria</span>
+                  </div>
+                </button>
+              </div>
             )}
             <input 
               type="file" 
               ref={fileInputRef} 
               onChange={handleSmartIdentify} 
               accept="image/*" 
-              capture="environment" 
               className="hidden" 
             />
           </div>
@@ -284,6 +318,17 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
 
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 ml-1">Qtd</label>
+                <input 
+                  type="number" 
+                  value={quantity} 
+                  onChange={e => setQuantity(parseInt(e.target.value) || 1)} 
+                  required 
+                  min="1"
+                  className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-zinc-700 focus:border-emerald-500 focus:bg-white transition-all"
+                />
+              </div>
+              <div>
                 <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 ml-1">Valor Venda (R$)</label>
                 <input 
                   type="text" 
@@ -294,17 +339,18 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSave, reps, pr
                   placeholder="0,00"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 ml-1">Status Entrega</label>
-                <select 
-                  value={status} 
-                  onChange={e => setStatus(e.target.value as SaleStatus)} 
-                  className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-zinc-700 focus:border-emerald-500 focus:bg-white transition-all"
-                >
-                  <option value="Vendida">Concluída</option>
-                  <option value="Não Vendida">Pendente</option>
-                </select>
-              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 ml-1">Status Entrega</label>
+              <select 
+                value={status} 
+                onChange={e => setStatus(e.target.value as SaleStatus)} 
+                className="w-full p-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl font-black text-zinc-700 focus:border-emerald-500 focus:bg-white transition-all"
+              >
+                <option value="Vendida">Concluída</option>
+                <option value="Não Vendida">Pendente</option>
+              </select>
             </div>
 
             <div>

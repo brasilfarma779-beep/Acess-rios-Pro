@@ -238,6 +238,7 @@ const App: React.FC = () => {
                           </a>
                           <div className="flex gap-2">
                              <button onClick={() => { setSelectedRepId(s.repId); setMovType('Reposição'); setIsMovOpen(true); }} className="flex-1 bg-emerald-500 text-zinc-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">+ Reposição</button>
+                             <button onClick={() => { setSelectedRepId(s.repId); setIsSaleOpen(true); }} className="flex-1 bg-zinc-900 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Venda Rápida</button>
                              <button 
                                 onClick={() => {
                                   const rep = reps.find(r => r.id === s.repId);
@@ -354,9 +355,10 @@ const App: React.FC = () => {
       />
       <SaleModal 
         isOpen={isSaleOpen} 
-        onClose={() => setIsSaleOpen(false)} 
+        onClose={() => { setIsSaleOpen(false); setSelectedRepId(''); }} 
         reps={reps} 
         products={products} 
+        initialRepId={selectedRepId}
         onSave={(s: Sale) => {
           const movement: Movement = {
             id: s.id,
@@ -364,7 +366,7 @@ const App: React.FC = () => {
             representativeId: s.representativeId,
             productId: s.productId,
             type: 'Vendido',
-            quantity: 1,
+            quantity: s.quantity || 1,
             value: s.value
           };
           setMovements(prev => [movement, ...prev]);
