@@ -21,24 +21,62 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [reps, setReps] = useState<Representative[]>(() => {
-    const saved = localStorage.getItem('hub_v5_reps');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hub_v5_reps');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Erro ao carregar vendedoras:", e);
+      return [];
+    }
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('hub_v5_prods');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hub_v5_prods');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Erro ao carregar produtos:", e);
+      return [];
+    }
   });
 
   const [movements, setMovements] = useState<Movement[]>(() => {
-    const saved = localStorage.getItem('hub_v5_movs');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hub_v5_movs');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Erro ao carregar movimentos:", e);
+      return [];
+    }
   });
 
-  // Auto-Save para segurança total
-  useEffect(() => localStorage.setItem('hub_v5_reps', JSON.stringify(reps)), [reps]);
-  useEffect(() => localStorage.setItem('hub_v5_prods', JSON.stringify(products)), [products]);
-  useEffect(() => localStorage.setItem('hub_v5_movs', JSON.stringify(movements)), [movements]);
+  // Auto-Save com tratamento de erro (QuotaExceededError)
+  useEffect(() => {
+    try {
+      localStorage.setItem('hub_v5_reps', JSON.stringify(reps));
+    } catch (e) {
+      console.error("Erro ao salvar vendedoras:", e);
+    }
+  }, [reps]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hub_v5_prods', JSON.stringify(products));
+    } catch (e) {
+      console.error("Erro ao salvar produtos:", e);
+    }
+  }, [products]);
+
+  useEffect(() => {
+    try {
+      // Removemos imagens pesadas antes de salvar no localStorage para evitar estouro de memória
+      const movementsToSave = movements.map(({ image, ...rest }) => rest);
+      localStorage.setItem('hub_v5_movs', JSON.stringify(movementsToSave));
+    } catch (e) {
+      console.error("Erro ao salvar movimentos (Memória cheia):", e);
+      alert("Atenção: Memória do navegador cheia. Algumas fotos não foram salvas, mas os dados numéricos estão seguros.");
+    }
+  }, [movements]);
 
   // Modais
   const [isMovOpen, setIsMovOpen] = useState(false);
@@ -101,6 +139,14 @@ const App: React.FC = () => {
             <h1 className="text-xl font-black italic tracking-tighter text-zinc-900 uppercase">HUB SOBERANO</h1>
           </div>
           <div className="flex gap-2">
+             <button title="Limpar Tudo (CUIDADO)" onClick={() => {
+               if(window.confirm("ISSO APAGARÁ TODOS OS DADOS. Tem certeza? Faça um backup antes!")) {
+                 localStorage.clear();
+                 window.location.reload();
+               }
+             }} className="p-2.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-all">
+               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+             </button>
              <button title="Exportar Backup" onClick={exportFullData} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></button>
              <button title="Importar Backup" onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-zinc-200 transition-all"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button>
              <input type="file" ref={fileInputRef} onChange={handleImportBackup} accept=".json" className="hidden" />
