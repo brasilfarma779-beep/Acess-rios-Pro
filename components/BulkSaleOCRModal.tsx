@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { Category, Sale, Product, Representative, SaleStatus } from '../types';
-import { fileToBase64, generateId, formatCurrency } from '../utils';
+import { fileToBase64, generateId, formatCurrency, resizeImage } from '../utils';
 
 interface BulkSaleOCRModalProps {
   isOpen: boolean;
@@ -39,15 +39,16 @@ const BulkSaleOCRModal: React.FC<BulkSaleOCRModalProps> = ({ isOpen, onClose, on
     setCurrentImage(null);
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>, fromGallery = false) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const base64 = await fileToBase64(file);
-    setCurrentImage(`data:${file.type};base64,${base64}`);
     setStep('processing');
 
     try {
+      const base64 = await resizeImage(file);
+      setCurrentImage(`data:image/jpeg;base64,${base64}`);
+      
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -194,7 +195,12 @@ const BulkSaleOCRModal: React.FC<BulkSaleOCRModalProps> = ({ isOpen, onClose, on
               
               <div className="flex flex-col gap-3 max-w-sm mx-auto">
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.setAttribute('capture', 'environment');
+                      fileInputRef.current.click();
+                    }
+                  }}
                   className="bg-emerald-600 text-white font-black py-6 rounded-[24px] shadow-xl shadow-emerald-100 flex items-center justify-center gap-3 transition-all active:scale-95"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -205,7 +211,6 @@ const BulkSaleOCRModal: React.FC<BulkSaleOCRModalProps> = ({ isOpen, onClose, on
                     if (fileInputRef.current) {
                       fileInputRef.current.removeAttribute('capture');
                       fileInputRef.current.click();
-                      setTimeout(() => fileInputRef.current?.setAttribute('capture', 'environment'), 100);
                     }
                   }}
                   className="bg-zinc-100 text-zinc-600 font-black py-4 rounded-[24px] flex items-center justify-center gap-3 hover:bg-zinc-200 transition-all"
@@ -213,7 +218,7 @@ const BulkSaleOCRModal: React.FC<BulkSaleOCRModalProps> = ({ isOpen, onClose, on
                   ESCOLHER DA GALERIA
                 </button>
               </div>
-              <input type="file" ref={fileInputRef} onChange={(e) => handleFile(e)} accept="image/*" capture="environment" className="hidden" />
+              <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" className="hidden" />
             </div>
           )}
 
