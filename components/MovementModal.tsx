@@ -14,6 +14,7 @@ interface MovementModalProps {
   editingMovement?: Movement | null;
   initialType?: MovementType;
   initialRepId?: string;
+  onDelete?: (id: string) => void;
 }
 
 const MovementModal: React.FC<MovementModalProps> = ({ 
@@ -24,7 +25,8 @@ const MovementModal: React.FC<MovementModalProps> = ({
   products,
   editingMovement = null,
   initialType = 'Vendido',
-  initialRepId
+  initialRepId,
+  onDelete
 }) => {
   const [repId, setRepId] = useState('');
   const [productId, setProductId] = useState('');
@@ -276,7 +278,19 @@ const MovementModal: React.FC<MovementModalProps> = ({
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-zinc-900 text-white font-black py-5 rounded-[24px] shadow-2xl mt-4 active:scale-95 transition-all text-xs uppercase tracking-widest">Finalizar Ação</button>
+          <button type="submit" className="w-full bg-zinc-900 text-white font-black py-5 rounded-[24px] shadow-2xl mt-4 active:scale-95 transition-all text-xs uppercase tracking-widest">
+            {editingMovement ? 'Salvar Alterações' : 'Finalizar Ação'}
+          </button>
+
+          {editingMovement && onDelete && (
+            <button 
+              type="button" 
+              onClick={() => onDelete(editingMovement.id)}
+              className="w-full bg-rose-50 text-rose-500 font-black py-4 rounded-[24px] hover:bg-rose-100 transition-all text-[10px] uppercase tracking-widest mt-2"
+            >
+              Excluir Movimentação
+            </button>
+          )}
         </form>
       </div>
     </div>

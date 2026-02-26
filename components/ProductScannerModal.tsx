@@ -8,14 +8,17 @@ interface ProductScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
+  onUpdateProduct?: (p: Product) => void;
 }
 
-const ProductScannerModal: React.FC<ProductScannerModalProps> = ({ isOpen, onClose, products }) => {
+const ProductScannerModal: React.FC<ProductScannerModalProps> = ({ isOpen, onClose, products, onUpdateProduct }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
   const [foundProduct, setFoundProduct] = useState<Product | null>(null);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [reason, setReason] = useState('');
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [newPrice, setNewPrice] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -99,6 +102,17 @@ const ProductScannerModal: React.FC<ProductScannerModalProps> = ({ isOpen, onClo
     }
   };
 
+  const handleSavePrice = () => {
+    if (!foundProduct || !onUpdateProduct) return;
+    const price = parseFloat(newPrice.replace(',', '.')) || 0;
+    if (price <= 0) return alert('Preço inválido');
+    
+    const updated = { ...foundProduct, price };
+    onUpdateProduct(updated);
+    setFoundProduct(updated);
+    setIsEditingPrice(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-md">
       <div className="bg-white w-full max-w-md rounded-[48px] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
@@ -174,9 +188,35 @@ const ProductScannerModal: React.FC<ProductScannerModalProps> = ({ isOpen, onClo
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-white/50 p-3 rounded-2xl">
+                    <div className="bg-white/50 p-3 rounded-2xl relative group/price">
                       <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block">Preço</span>
-                      <span className="text-lg font-black text-emerald-700">{formatCurrency(foundProduct.price)}</span>
+                      {isEditingPrice ? (
+                        <div className="flex gap-2 mt-1">
+                          <input 
+                            autoFocus
+                            type="text"
+                            value={newPrice}
+                            onChange={e => setNewPrice(e.target.value.replace(/[^0-9,.]/g, ''))}
+                            className="w-full bg-white border border-emerald-200 rounded-lg px-2 py-1 text-sm font-black text-emerald-700 outline-none"
+                          />
+                          <button onClick={handleSavePrice} className="bg-emerald-500 text-white p-1 rounded-lg">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-black text-emerald-700">{formatCurrency(foundProduct.price)}</span>
+                          {onUpdateProduct && (
+                            <button 
+                              onClick={() => { setIsEditingPrice(true); setNewPrice(foundProduct.price.toString().replace('.', ',')); }}
+                              className="p-1 text-emerald-400 hover:text-emerald-600 transition-colors"
+                              title="Editar Preço"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="bg-white/50 p-3 rounded-2xl">
                       <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest block">Estoque</span>
@@ -193,13 +233,17 @@ const ProductScannerModal: React.FC<ProductScannerModalProps> = ({ isOpen, onClo
                   <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest ml-2">Produtos Similares Encontrados:</p>
                   <div className="grid grid-cols-1 gap-2">
                     {suggestions.map(p => (
-                      <div key={p.id} className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center">
+                      <button 
+                        key={p.id} 
+                        onClick={() => { setFoundProduct(p); setSuggestions([]); }}
+                        className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center hover:border-emerald-500 transition-all text-left"
+                      >
                         <div>
                           <span className="block font-black text-zinc-800 text-sm uppercase">{p.name}</span>
                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{p.category} • {p.code || 'S/C'}</span>
                         </div>
                         <span className="font-black text-emerald-600">{formatCurrency(p.price)}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

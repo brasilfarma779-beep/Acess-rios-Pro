@@ -1,6 +1,50 @@
 
 import { Movement, Representative, Product, MaletaSummary, Category, Sale, SaleStatus } from './types.ts';
 
+export interface InventoryItem {
+  productId: string;
+  productName: string;
+  productCode: string;
+  quantity: number;
+  unitPrice: number;
+  totalValue: number;
+}
+
+export const getRepInventory = (movements: Movement[], products: Product[], repId: string): InventoryItem[] => {
+  const repMovements = movements.filter(m => m.representativeId === repId);
+  const inventoryMap = new Map<string, number>();
+
+  repMovements.forEach(m => {
+    if (m.type === 'Ajuste') return; 
+    
+    const currentQty = inventoryMap.get(m.productId) || 0;
+    if (m.type === 'Entregue' || m.type === 'Reposição') {
+      inventoryMap.set(m.productId, currentQty + m.quantity);
+    } else if (m.type === 'Vendido' || m.type === 'Devolvido') {
+      inventoryMap.set(m.productId, currentQty - m.quantity);
+    }
+  });
+
+  const inventory: InventoryItem[] = [];
+  inventoryMap.forEach((qty, productId) => {
+    if (qty > 0) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        inventory.push({
+          productId,
+          productName: product.name,
+          productCode: product.code,
+          quantity: qty,
+          unitPrice: product.price,
+          totalValue: qty * product.price
+        });
+      }
+    }
+  });
+
+  return inventory;
+};
+
 export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',

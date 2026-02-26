@@ -1,7 +1,7 @@
 
 // @google/genai guidelines followed: Using GoogleGenAI with named parameters and direct API_KEY access.
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Movement, Representative, Product, Category, MaletaSummary, MovementType } from './types.ts';
+import { AdjustmentTarget, Sale, Movement, Representative, Product, Category, MaletaSummary, MovementType } from './types.ts';
 import { calculateMaletaSummaries, formatCurrency, generateId, exportFullData } from './utils.ts';
 import StatsCard from './components/StatsCard.tsx';
 import MovementModal from './components/MovementModal.tsx';
@@ -12,7 +12,9 @@ import ProductScannerModal from './components/ProductScannerModal.tsx';
 import AdjustmentModal from './components/AdjustmentModal.tsx';
 import SaleModal from './components/SaleModal.tsx';
 import BulkSaleOCRModal from './components/BulkSaleOCRModal.tsx';
-import { AdjustmentTarget, Sale } from './types.ts';
+import MaletaOCRModal from './components/MaletaOCRModal.tsx';
+import MaletaInventoryModal from './components/MaletaInventoryModal.tsx';
+import ConfirmModal from './components/ConfirmModal.tsx';
 
 type Tab = 'dashboard' | 'maletas' | 'catalogo';
 
@@ -87,6 +89,8 @@ const App: React.FC = () => {
   const [isAdjOpen, setIsAdjOpen] = useState(false);
   const [isSaleOpen, setIsSaleOpen] = useState(false);
   const [isBulkOCROpen, setIsBulkOCROpen] = useState(false);
+  const [isMaletaOCROpen, setIsMaletaOCROpen] = useState(false);
+  const [isMaletaInvOpen, setIsMaletaInvOpen] = useState(false);
   const [adjTarget, setAdjTarget] = useState<AdjustmentTarget>('sold');
   const [targetRepId, setTargetRepId] = useState('');
   
@@ -95,6 +99,24 @@ const App: React.FC = () => {
   const [editingMov, setEditingMov] = useState<Movement | null>(null);
   const [selectedRepId, setSelectedRepId] = useState<string | undefined>(undefined);
   const [movType, setMovType] = useState<MovementType>('Vendido');
+
+  // Confirmação
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'warning';
+  }>({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: typeof confirmConfig) => {
+    setConfirmConfig(config);
+    setIsConfirmOpen(true);
+  };
 
   const summaries = useMemo(() => calculateMaletaSummaries(movements, reps), [movements, reps]);
   
@@ -142,10 +164,14 @@ const App: React.FC = () => {
           </div>
           <div className="flex gap-2">
              <button title="Limpar Tudo (CUIDADO)" onClick={() => {
-               if(window.confirm("ISSO APAGARÁ TODOS OS DADOS. Tem certeza? Faça um backup antes!")) {
-                 localStorage.clear();
-                 window.location.reload();
-               }
+               showConfirm({
+                 title: 'Limpar Todos os Dados',
+                 message: 'ISSO APAGARÁ TODOS OS DADOS DEFINITIVAMENTE. Tem certeza? Certifique-se de ter feito um backup antes!',
+                 onConfirm: () => {
+                   localStorage.clear();
+                   window.location.reload();
+                 }
+               });
              }} className="p-2.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-all">
                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
              </button>
@@ -221,14 +247,84 @@ const App: React.FC = () => {
                 <h3 className="text-3xl font-black text-zinc-900 tracking-tighter">{stats.totalItems} un.</h3>
               </div>
             </div>
+
+            {/* HISTÓRICO RECENTE */}
+            <section className="bg-white p-8 rounded-[48px] border border-zinc-100 shadow-sm">
+               <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-black text-zinc-900 uppercase italic">Histórico Recente</h3>
+               </div>
+               <div className="space-y-3">
+                  {movements.slice(0, 10).map(m => {
+                     const rep = reps.find(r => r.id === m.representativeId);
+                     const prod = products.find(p => p.id === m.productId);
+                     return (
+                        <div key={m.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100 group">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] ${
+                                 m.type === 'Vendido' ? 'bg-emerald-100 text-emerald-600' : 
+                                 m.type === 'Entregue' ? 'bg-blue-100 text-blue-600' :
+                                 m.type === 'Devolvido' ? 'bg-rose-100 text-rose-600' : 'bg-zinc-200 text-zinc-600'
+                              }`}>
+                                 {m.type[0]}
+                              </div>
+                              <div>
+                                 <p className="text-xs font-black text-zinc-900 uppercase">{prod?.name || 'Produto Excluído'}</p>
+                                 <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{rep?.name || 'Vendedora Excluída'} • {new Date(m.date).toLocaleDateString()}</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                 <p className="text-xs font-black text-zinc-900">{formatCurrency(m.value * m.quantity)}</p>
+                                 <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{m.quantity} un.</p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button 
+                                    onClick={() => { setEditingMov(m); setIsMovOpen(true); }}
+                                    className="p-2 bg-white text-zinc-600 rounded-lg shadow-sm hover:text-zinc-900 transition-colors"
+                                 >
+                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                 </button>
+                                 <button 
+                                    onClick={() => {
+                                       showConfirm({
+                                         title: 'Excluir Movimentação',
+                                         message: 'Tem certeza que deseja remover este registro do histórico?',
+                                         onConfirm: () => {
+                                           setMovements(prev => prev.filter(x => x.id !== m.id));
+                                         }
+                                       });
+                                    }}
+                                    className="p-2 bg-white text-rose-500 rounded-lg shadow-sm hover:bg-rose-50 transition-colors"
+                                 >
+                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     );
+                  })}
+                  {movements.length === 0 && (
+                     <p className="text-center py-8 text-zinc-400 font-black uppercase tracking-widest text-[10px] italic">Nenhuma movimentação recente</p>
+                  )}
+               </div>
+            </section>
           </div>
         )}
 
         {activeTab === 'maletas' && (
            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-center px-4">
-                <h2 className="text-3xl font-black text-zinc-900 italic uppercase">Equipe</h2>
-                <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">CONVOCAR TALENTO</button>
+                <div>
+                  <h2 className="text-3xl font-black text-zinc-900 italic uppercase leading-none">Maleta</h2>
+                  <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mt-2 italic">Gestão de Estoque em Campo</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setIsMaletaOCROpen(true)} className="bg-emerald-500 text-zinc-900 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Digitalizar Maleta
+                  </button>
+                  <button onClick={() => { setEditingRep(null); setIsRepOpen(true); }} className="bg-zinc-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">Nova Vendedora</button>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-6">
                  {summaries.map(s => (
@@ -243,9 +339,10 @@ const App: React.FC = () => {
                           >
                             {s.repPhone}
                           </a>
-                          <div className="flex gap-2">
-                             <button onClick={() => { setSelectedRepId(s.repId); setMovType('Reposição'); setIsMovOpen(true); }} className="flex-1 bg-emerald-500 text-zinc-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">+ Reposição</button>
-                             <button onClick={() => { setSelectedRepId(s.repId); setIsSaleOpen(true); }} className="flex-1 bg-zinc-900 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Venda Rápida</button>
+                          <div className="flex flex-wrap gap-2">
+                             <button onClick={() => { setSelectedRepId(s.repId); setIsMaletaInvOpen(true); }} className="flex-1 bg-zinc-900 text-white font-black py-4 px-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Gerenciar Maleta</button>
+                             <button onClick={() => { setSelectedRepId(s.repId); setIsSaleOpen(true); }} className="flex-1 bg-emerald-50 text-emerald-600 border border-emerald-100 font-black py-4 px-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all">Venda Rápida</button>
+                             <button onClick={() => { setSelectedRepId(s.repId); setMovType('Reposição'); setIsMovOpen(true); }} className="bg-emerald-500 text-zinc-900 font-black py-4 px-6 rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">+ Peça</button>
                              <button 
                                 onClick={() => {
                                   const rep = reps.find(r => r.id === s.repId);
@@ -261,9 +358,13 @@ const App: React.FC = () => {
                              <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (window.confirm(`Deseja excluir a vendedora ${s.repName}?`)) {
-                                    setReps(prev => prev.filter(r => r.id !== s.repId));
-                                  }
+                                  showConfirm({
+                                    title: 'Excluir Vendedora',
+                                    message: `Deseja excluir a vendedora ${s.repName} e todos os seus registros?`,
+                                    onConfirm: () => {
+                                      setReps(prev => prev.filter(r => r.id !== s.repId));
+                                    }
+                                  });
                                 }} 
                                 className="p-4 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 transition-colors"
                               >
@@ -315,6 +416,21 @@ const App: React.FC = () => {
                         <button onClick={() => { setEditingProd(p); setIsProdOpen(true); }} className="p-3 bg-white/90 text-zinc-900 rounded-xl shadow-lg hover:bg-white transition-all">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showConfirm({
+                              title: 'Excluir Produto',
+                              message: `Deseja remover ${p.name} do catálogo permanentemente?`,
+                              onConfirm: () => {
+                                setProducts(prev => prev.filter(x => x.id !== p.id));
+                              }
+                            });
+                          }} 
+                          className="p-3 bg-rose-50/90 text-rose-500 rounded-xl shadow-lg hover:bg-rose-50 transition-all"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                       </div>
                     </div>
                     <div className="p-6">
@@ -349,7 +465,7 @@ const App: React.FC = () => {
           active={activeTab === 'maletas'} 
           onClick={() => setActiveTab('maletas')} 
           icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745V20a2 2 0 002 2h14a2 2 0 002-2v-6.745zM3.136 11.562L12 13l8.864-1.438A23.913 23.913 0 0012 10a23.914 23.914 0 00-8.864 1.562zM12 2l4 4V2H8v4l4-4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13a2 2 0 100-4 2 2 0 000 4z" /></svg>} 
-          label="EQUIPE DE ELITE" 
+          label="MALETA" 
         />
         <NavBtn 
           active={activeTab === 'catalogo'} 
@@ -368,6 +484,17 @@ const App: React.FC = () => {
         products={products} 
         initialType={movType} 
         initialRepId={selectedRepId} 
+        onDelete={id => {
+          showConfirm({
+            title: 'Excluir Movimentação',
+            message: 'Tem certeza que deseja remover esta movimentação? O estoque não será revertido automaticamente.',
+            onConfirm: () => {
+              setMovements(prev => prev.filter(x => x.id !== id));
+              setIsMovOpen(false);
+              setEditingMov(null);
+            }
+          });
+        }}
         onSave={m => {
           setMovements(prev => {
             const exists = prev.find(x => x.id === m.id);
@@ -404,10 +531,68 @@ const App: React.FC = () => {
           }
         }} 
       />
-      <ProductModal isOpen={isProdOpen} onClose={() => { setIsProdOpen(false); setEditingProd(null); }} editingProduct={editingProd} onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} />
+      <ProductModal 
+        isOpen={isProdOpen} 
+        onClose={() => { setIsProdOpen(false); setEditingProd(null); }} 
+        editingProduct={editingProd} 
+        onSave={p => setProducts(prev => { const e = prev.find(x => x.id === p.id); return e ? prev.map(x => x.id === p.id ? p : x) : [p, ...prev]; })} 
+        onDelete={id => {
+          showConfirm({
+            title: 'Excluir Produto',
+            message: 'Tem certeza que deseja remover este item do catálogo?',
+            onConfirm: () => {
+              setProducts(prev => prev.filter(p => p.id !== id));
+              setIsProdOpen(false);
+              setEditingProd(null);
+            }
+          });
+        }}
+      />
       <RepresentativeModal isOpen={isRepOpen} onClose={() => { setIsRepOpen(false); setEditingRep(null); }} editingRep={editingRep} onSave={r => setReps(prev => { const e = prev.find(x => x.id === r.id); return e ? prev.map(x => x.id === r.id ? r : x) : [r, ...prev]; })} />
       <OCRModal isOpen={isOCRModalOpen} onClose={() => setIsOCRModalOpen(false)} onImport={p => setProducts(prev => [...p, ...prev])} />
-      <ProductScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} products={products} />
+      <ProductScannerModal 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        products={products} 
+        onUpdateProduct={p => setProducts(prev => prev.map(x => x.id === p.id ? p : x))}
+      />
+      <MaletaOCRModal 
+        isOpen={isMaletaOCROpen} 
+        onClose={() => setIsMaletaOCROpen(false)} 
+        reps={reps} 
+        products={products} 
+        targetRepId={selectedRepId}
+        onImport={movs => {
+          setMovements(prev => [...movs, ...prev]);
+          // Update product stock
+          setProducts(prev => prev.map(p => {
+            const added = movs.filter(m => m.productId === p.id).reduce((acc, m) => acc + m.quantity, 0);
+            return { ...p, stock: p.stock - added };
+          }));
+        }}
+      />
+      {selectedRepId && reps.find(r => r.id === selectedRepId) && (
+        <MaletaInventoryModal 
+          isOpen={isMaletaInvOpen}
+          onClose={() => setIsMaletaInvOpen(false)}
+          rep={reps.find(r => r.id === selectedRepId)!}
+          movements={movements}
+          products={products}
+          onAddJewel={(id) => {
+            setSelectedRepId(id);
+            setMovType('Reposição');
+            setIsMovOpen(true);
+          }}
+          onDigitize={(id) => {
+            setSelectedRepId(id);
+            setIsMaletaOCROpen(true);
+          }}
+          onQuickSale={(id) => {
+            setSelectedRepId(id);
+            setIsSaleOpen(true);
+          }}
+        />
+      )}
       <AdjustmentModal 
         isOpen={isAdjOpen} 
         onClose={() => setIsAdjOpen(false)} 
@@ -451,6 +636,15 @@ const App: React.FC = () => {
           }));
           setMovements(prev => [...newMovs, ...prev]);
         }} 
+      />
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        variant={confirmConfig.variant}
       />
     </div>
   );
